@@ -1,0 +1,43 @@
+<h1>그림 맞히기</h1>
+<section class="room-panel">
+    <h2>참가자 <span id="player-count">0</span>명</h2>
+    <ul id="player-list" class="player-list" aria-live="polite"></ul>
+    <p id="game-status" role="status" aria-live="polite">호스트가 게임을 준비하고 있습니다.</p>
+</section>
+
+<section id="play-area" hidden>
+    <h2 id="round-title">라운드 준비 중</h2>
+    <p>남은 시간: <strong id="round-countdown">--</strong></p>
+    <p id="drawer-word" class="drawer-word" hidden></p>
+    <div class="game-canvas-wrap">
+        <canvas id="drawing-canvas" width="800" height="500" aria-label="그림판"></canvas>
+    </div>
+    <div id="drawing-controls" class="drawing-controls" hidden>
+        <label>색상 <input id="drawing-color" type="color" value="#202124"></label>
+        <label>굵기 <input id="drawing-width" type="range" min="2" max="24" value="6"></label>
+        <button type="button" id="undo-button" class="item-btn">되돌리기</button>
+    </div>
+
+    <div class="chat-panels">
+        <section class="chat-panel">
+            <h2>기본 채팅</h2>
+            <ol id="normal-chat" class="chat-list" aria-live="polite"></ol>
+        </section>
+        <section class="chat-panel">
+            <h2>정답자 채팅</h2>
+            <ol id="solved-chat" class="chat-list" aria-live="polite"></ol>
+        </section>
+    </div>
+    <form id="chat-form" class="chat-form">
+        <label for="chat-input">채팅 / 정답 입력</label>
+        <input id="chat-input" maxlength="200" autocomplete="off" required>
+        <button type="submit" class="item-btn">보내기</button>
+    </form>
+</section>
+
+<section id="final-statistics" hidden>
+    <h2>게임 통계</h2>
+    <div id="player-statistics"></div>
+    <h3>라운드 기록</h3>
+    <ol id="round-statistics"></ol>
+</section>

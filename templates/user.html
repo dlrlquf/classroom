@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+
+{% block title %}참가하기{% endblock %}
+
+{% block user_content %}
+<section id="lobby-panel" class="join-panel">
+    <h1>참가하기</h1>
+    <form id="join-form" class="settings-form">
+        <label>
+            이름
+            <input id="name-input" name="name" minlength="1" maxlength="16"
+                autocomplete="nickname" required>
+        </label>
+        <label>
+            접속 코드
+            <span class="code-inputs" aria-label="6자리 접속 코드">
+                {% for index in range(6) %}
+                <input class="code-input" name="code-digit" type="text"
+                    inputmode="numeric" pattern="[0-9]" maxlength="1"
+                    autocomplete="{{ 'one-time-code' if loop.first else 'off' }}"
+                    aria-label="접속 코드 {{ loop.index }}번째 숫자"
+                    value="{{ code[index] if code and code|length > index else '' }}"
+                    required>
+                {% endfor %}
+            </span>
+        </label>
+        <button type="submit" class="item-btn">입장</button>
+    </form>
+    <p id="join-status" role="status" aria-live="polite">이름과 접속 코드를 입력하세요.</p>
+</section>
+
+{# 호스트가 앱을 고르면 해당 앱 화면이 이 영역에 교체되어 들어온다. #}
+<div id="app-root"></div>
+
+<template id="app-idle-template">
+    <h1>대기 중</h1>
+    <p>호스트가 앱을 고르면 자동으로 화면이 바뀝니다.</p>
+</template>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/user.js') }}"></script>
+{% endblock %}

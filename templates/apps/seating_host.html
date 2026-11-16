@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+
+{% block title %}자리 배치{% endblock %}
+
+{% block host_content %}
+<h1>자리 배치</h1>
+<section class="seating-controls">
+    <label for="seating-class-select">반 선택</label>
+    <select id="seating-class-select"></select>
+    <label for="seating-columns">자리표 열 수</label>
+    <select id="seating-columns">
+        {% for columns in range(1, 13) %}
+        <option value="{{ columns }}" {{ 'selected' if columns == 4 }}>
+            {{ columns }}열
+        </option>
+        {% endfor %}
+    </select>
+    <form id="seating-class-form" class="settings-form">
+        <label for="seating-class-name">새 반 이름</label>
+        <input id="seating-class-name" maxlength="40" required>
+        <button type="submit" class="item-btn">반 추가</button>
+    </form>
+</section>
+
+<section class="seating-roster">
+    <h2>명단</h2>
+    <p>한 줄에 한 명씩 입력하세요. 명단을 저장하면 해당 반의 자리가 새로 배치됩니다.</p>
+    <form id="seating-roster-form">
+        <textarea id="seating-roster-input" rows="8"
+            placeholder="홍길동&#10;김영희"></textarea>
+        <button type="submit" class="item-btn">명단 저장</button>
+    </form>
+</section>
+
+<p id="seating-status" role="status" aria-live="polite"></p>
+<section>
+    <h2>자리표 <small>드래그하여 자리를 교체하고, 우클릭으로 칸을 잠그거나 해제하세요.</small></h2>
+    <ul id="seating-grid" class="seating-grid"></ul>
+    <div class="seating-actions">
+        <button type="button" id="seating-add-row" class="item-btn">+ 행 추가</button>
+        <button type="button" id="seating-shuffle" class="item-btn">무작위 섞기</button>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/seating_host.js') }}"></script>
+{% endblock %}

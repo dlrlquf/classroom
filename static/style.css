@@ -1,0 +1,866 @@
+﻿:root {
+    --bg: #f5f7fb;
+    --surface: #ffffff;
+    --text: #1f2937;
+    --muted: #6b7280;
+    --primary: #4f46e5;
+    --primary-soft: #eef2ff;
+    --border: #e5e7eb;
+    --radius: 12px;
+    --shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg: #0f172a;
+        --surface: #1e293b;
+        --text: #e2e8f0;
+        --muted: #94a3b8;
+        --primary: #818cf8;
+        --primary-soft: #312e81;
+        --border: #334155;
+        --shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    }
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Pretendard", "Segoe UI", "Malgun Gothic", system-ui, sans-serif;
+    line-height: 1.6;
+}
+
+nav {
+    position: sticky;
+    top: 0;
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    padding: 12px 24px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    box-shadow: var(--shadow);
+}
+
+nav a {
+    padding: 8px 16px;
+    border-radius: 999px;
+    color: var(--muted);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+nav a:hover,
+nav a.active {
+    background: var(--primary-soft);
+    color: var(--primary);
+}
+
+main {
+    flex: 1;
+    width: min(100% - 24px, 1000px);
+    margin: 24px auto;
+    padding: 24px 28px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+}
+
+section {
+    margin-top: 24px;
+}
+
+.join-info {
+    display: grid;
+    justify-items: center;
+    gap: 8px;
+    padding: 24px;
+    color: var(--muted);
+    text-align: center;
+}
+
+.join-info h2,
+.join-info p {
+    margin: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+}
+
+.join-code {
+    font-size: 1.8rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    color: var(--text);
+    overflow-wrap: anywhere;
+}
+
+.app-list {
+    display: grid;
+    gap: 12px;
+    padding: 0;
+    list-style: none;
+}
+
+.app-card {
+    display: grid;
+    gap: 4px;
+    padding: 16px 20px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    text-decoration: none;
+}
+
+.app-card:hover {
+    background: var(--primary-soft);
+}
+
+.app-card.disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.app-card.disabled:hover {
+    background: transparent;
+}
+
+.site-qr-code {
+    width: 160px;
+    height: 160px;
+    padding: 8px;
+    background: #fff;
+    border-radius: 8px;
+}
+
+.flash,
+#join-status,
+#admin-status {
+    padding: 10px 14px;
+    border-radius: 8px;
+}
+
+.error {
+    color: #b91c1c;
+}
+
+.settings-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 14px;
+}
+
+.settings-form label {
+    display: grid;
+    gap: 5px;
+    font-weight: 600;
+}
+
+.settings-form input,
+.settings-form select,
+.chat-form input {
+    min-height: 42px;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+}
+
+.settings-form input[name="round_duration"] {
+    width: 150px;
+}
+
+.code-inputs {
+    display: flex;
+    gap: 8px;
+}
+
+.settings-form .code-input {
+    width: 42px;
+    min-height: 48px;
+    padding: 6px;
+    text-align: center;
+    font-size: 1.25rem;
+}
+
+.item-btn {
+    padding: 9px 18px;
+    border: 1px solid var(--primary);
+    border-radius: 999px;
+    background: var(--primary-soft);
+    color: var(--primary);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.item-btn:hover:not(:disabled) {
+    background: var(--primary);
+    color: var(--surface);
+}
+
+.item-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.player-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 24px;
+    padding-left: 20px;
+}
+
+.word-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 4px 16px;
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.admin-settings,
+.admin-game,
+.join-panel,
+.room-panel {
+    padding: 18px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
+.admin-settings h2,
+.admin-game h2,
+.room-panel h2 {
+    margin-top: 0;
+}
+
+.game-canvas-wrap {
+    max-width: 100%;
+    overflow: auto;
+}
+
+#drawing-canvas {
+    display: block;
+    width: min(100%, 800px);
+    height: auto;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fff;
+    touch-action: none;
+}
+
+.drawing-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px;
+    margin-top: 12px;
+}
+
+.drawing-controls label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.drawer-word {
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+
+.chat-panels {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.chat-panel {
+    min-width: 0;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.chat-panel h2 {
+    margin: 0 0 8px;
+    font-size: 1.1rem;
+}
+
+.chat-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    height: 180px;
+    margin: 0;
+    padding: 8px 8px 8px 28px;
+    overflow-y: auto;
+}
+
+.correct-answer {
+    color: #15803d;
+    font-weight: 600;
+}
+
+.chat-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.chat-form input {
+    flex: 1;
+    min-width: 160px;
+}
+
+.tf-board {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.tf-column,
+.tf-pending {
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
+.tf-column h2,
+.tf-pending h2 {
+    margin-top: 0;
+}
+
+.tf-column.tf-true {
+    border-color: #15803d;
+}
+
+.tf-column.tf-false {
+    border-color: #b91c1c;
+}
+
+.tf-names {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-height: 40px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.tf-names li {
+    padding: 6px 12px;
+    background: var(--primary-soft);
+    border-radius: 999px;
+}
+
+.tf-buttons {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.response-launch,
+.response-history {
+    margin: 20px 0;
+}
+
+.response-launch > label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 600;
+}
+
+.response-launch > input,
+.response-user input {
+    min-height: 42px;
+    max-width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+}
+
+.response-visibility {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 12px 0;
+}
+
+.response-launch-buttons,
+.response-user-options,
+.response-breakdown {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.response-count {
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: var(--primary-soft);
+}
+
+.response-answers {
+    max-height: 320px;
+    overflow-y: auto;
+}
+
+.seating-controls,
+.seating-roster {
+    display: grid;
+    gap: 12px;
+    margin: 18px 0;
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
+.seating-controls > label,
+.seating-roster h2 {
+    margin: 0;
+    font-weight: 600;
+}
+
+#seating-class-select,
+#seating-class-name,
+#seating-roster-input {
+    min-height: 42px;
+    max-width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+}
+
+#seating-roster-input {
+    display: block;
+    width: 100%;
+    margin-bottom: 10px;
+    resize: vertical;
+}
+
+.seating-grid {
+    display: grid;
+    grid-template-columns: repeat(var(--seating-columns, 4), minmax(0, 1fr));
+    gap: 12px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.seating-seat {
+    display: grid;
+    gap: 10px;
+    min-height: 88px;
+    align-content: space-between;
+    min-width: 0;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    cursor: grab;
+}
+
+.seating-seat strong {
+    overflow-wrap: anywhere;
+    line-height: 1.25;
+}
+
+.seating-seat.dragging {
+    opacity: 0.45;
+}
+
+.seating-seat.empty {
+    border-style: dashed;
+    color: var(--muted);
+}
+
+.seating-seat.locked {
+    border-color: var(--primary);
+    background: var(--primary-soft);
+    cursor: not-allowed;
+}
+
+.seating-lock-label {
+    min-height: 1em;
+    color: var(--primary);
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.seating-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.seating-present {
+    color: #15803d;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.seating-absent {
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
+.landgrab-controls {
+    display: grid;
+    justify-items: start;
+    gap: 10px;
+}
+
+#landgrab-interval {
+    width: 140px;
+    min-height: 42px;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+}
+
+.landgrab-legend ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 24px;
+}
+
+.landgrab-user {
+    display: grid;
+    gap: 20px;
+}
+
+.landgrab-user section h2 {
+    margin-bottom: 10px;
+}
+
+.landgrab-map-wrap {
+    width: 100%;
+    overflow: auto;
+    padding: 8px 0;
+}
+
+.landgrab-map-wrap svg {
+    display: block;
+    width: min(100%, 900px);
+    height: auto;
+    margin: 0 auto;
+}
+
+.landgrab-hex polygon {
+    stroke: #334155;
+    stroke-width: 2;
+    vector-effect: non-scaling-stroke;
+}
+
+.landgrab-hex.owned polygon {
+    stroke: #111827;
+    stroke-width: 4;
+}
+
+.landgrab-terrain-mark,
+.landgrab-owner-mark {
+    text-anchor: middle;
+    dominant-baseline: middle;
+    pointer-events: none;
+}
+
+.landgrab-terrain-mark {
+    fill: #1f2937;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.landgrab-owner-mark {
+    fill: #111827;
+    font-size: 8px;
+    font-weight: 600;
+}
+
+.landgrab-player-list,
+.landgrab-resources {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.landgrab-player-card,
+.landgrab-resource {
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+}
+
+.landgrab-player-card h3,
+.landgrab-player-card p {
+    margin: 4px 0;
+}
+
+.landgrab-buyable-list {
+    display: grid;
+    gap: 8px;
+    padding-left: 20px;
+}
+
+.landgrab-buyable-list li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.landgrab-buyable-details {
+    display: grid;
+    gap: 4px;
+}
+
+.mindgame-interval-label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 600;
+}
+
+#mindgame-interval {
+    width: 120px;
+    min-height: 42px;
+    margin-right: 8px;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+}
+
+.mindgame-click-order {
+    display: grid;
+    gap: 8px;
+    padding-left: 32px;
+    font-size: 1.1rem;
+}
+
+.mindgame-user {
+    display: grid;
+    gap: 16px;
+    justify-items: center;
+    text-align: center;
+}
+
+.mindgame-user #mindgame-click {
+    width: min(80vw, 320px);
+    min-height: 180px;
+    border-radius: var(--radius);
+    font-size: 2rem;
+}
+
+.response-history details {
+    margin: 8px 0;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.response-user-options .item-btn[aria-pressed="true"] {
+    outline: 3px solid var(--text);
+}
+
+.tf-button {
+    min-height: 140px;
+    border: 3px solid transparent;
+    border-radius: var(--radius);
+    color: #fff;
+    font-size: 2rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.tf-button.tf-true {
+    background: #15803d;
+}
+
+.tf-button.tf-false {
+    background: #b91c1c;
+}
+
+.tf-button.selected {
+    border-color: var(--text);
+    box-shadow: 0 0 0 4px var(--primary-soft);
+}
+
+[hidden] {
+    display: none !important;
+}
+
+/* 호스트 화면: PC 기준, 왼쪽에 참가자 목록 */
+.host-layout {
+    display: grid;
+    grid-template-columns: 240px minmax(0, 1fr) 240px;
+    gap: 24px;
+    width: min(100% - 48px, 1400px);
+    margin: 24px auto;
+    flex: 1;
+    align-items: start;
+}
+
+.host-layout.no-sidebar {
+    grid-template-columns: minmax(0, 1fr) 240px;
+}
+
+.participant-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 12px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.participant-grid li {
+    padding: 14px 16px;
+    background: var(--primary-soft);
+    border-radius: var(--radius);
+    font-weight: 600;
+    text-align: center;
+    overflow-wrap: anywhere;
+}
+
+.host-layout main {
+    width: auto;
+    margin: 0;
+}
+
+.participants-panel,
+.host-layout .join-info {
+    position: sticky;
+    top: 76px;
+    padding: 18px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+}
+
+.participants-panel h2 {
+    margin: 0 0 12px;
+    font-size: 1.1rem;
+}
+
+.participant-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: calc(100vh - 220px);
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+    list-style: none;
+}
+
+.participant-list li {
+    padding: 6px 10px;
+    background: var(--primary-soft);
+    border-radius: 8px;
+    overflow-wrap: anywhere;
+}
+
+/* 참가자 화면: 모바일/태블릿 기준 */
+.user-page main {
+    width: min(100% - 16px, 720px);
+    margin: 8px auto;
+    padding: 16px;
+}
+
+.user-page input,
+.user-page button,
+.user-page select {
+    min-height: 48px;
+    font-size: 16px;
+}
+
+.user-page .settings-form,
+.user-page .chat-form {
+    display: grid;
+    gap: 12px;
+}
+
+.user-page .chat-form {
+    grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.user-page .chat-form label {
+    grid-column: 1 / -1;
+}
+
+.user-page .chat-form input {
+    min-width: 0;
+}
+
+.user-page .item-btn {
+    padding: 0 20px;
+}
+
+.user-page .drawing-controls {
+    gap: 12px;
+}
+
+.user-page .drawing-controls input[type="range"] {
+    min-height: 32px;
+    width: 140px;
+}
+
+.user-page #drawing-canvas {
+    width: 100%;
+}
+
+@media (max-width: 900px) {
+    .user-page .chat-panels {
+        grid-template-columns: 1fr;
+    }
+
+    .user-page .chat-list {
+        height: 140px;
+    }
+}
+
+@media (max-width: 600px) {
+    main {
+        padding: 18px 14px;
+    }
+
+    nav {
+        padding: 8px 12px;
+    }
+
+    .chat-panels {
+        grid-template-columns: 1fr;
+    }
+}

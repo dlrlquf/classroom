@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+
+{% block title %}게임 관리자{% endblock %}
+
+{% block host_content %}
+<h1>그림 맞히기</h1>
+
+<section class="admin-game">
+    <h2>게임 진행</h2>
+    <button type="button" id="start-game-button" class="item-btn">게임 시작</button>
+    <p id="admin-status" role="status" aria-live="polite"></p>
+</section>
+
+<section id="admin-statistics" hidden>
+    <h2>게임 통계</h2>
+    <div id="statistics-content"></div>
+    <h3>라운드 기록</h3>
+    <ol id="round-statistics"></ol>
+</section>
+
+<section class="admin-settings">
+    <h2>게임 설정</h2>
+    <form method="post" class="settings-form">
+        <label>
+            그림 테마
+            <select name="theme_id" id="theme-select">
+                {% for theme in themes %}
+                <option value="{{ theme['id'] }}"
+                    {{ 'selected' if theme['id'] == selected_theme_id }}>
+                    {{ theme['name'] }}
+                </option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            라운드 제한 시간 (초)
+            <input type="number" name="round_duration" min="15" max="300"
+                value="{{ round_duration }}" required>
+        </label>
+        <button type="submit" class="item-btn">설정 저장</button>
+    </form>
+    <p id="theme-word-count">{{ selected_theme_name }} 단어 {{ words|length }}개 저장됨</p>
+    <ul class="word-list">
+        {% for word in words %}
+        <li>{{ word['word'] }}</li>
+        {% endfor %}
+    </ul>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+{% endblock %}

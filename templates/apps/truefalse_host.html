@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+
+{% block title %}참 / 거짓{% endblock %}
+
+{% block host_content %}
+<h1>참 / 거짓</h1>
+<p>참가자가 고른 답이 아래에 표시됩니다.</p>
+<div class="tf-board">
+    <section class="tf-column tf-true">
+        <h2>참 <span id="tf-count-true">0</span></h2>
+        <ul id="tf-list-true" class="tf-names"></ul>
+    </section>
+    <section class="tf-column tf-false">
+        <h2>거짓 <span id="tf-count-false">0</span></h2>
+        <ul id="tf-list-false" class="tf-names"></ul>
+    </section>
+</div>
+<section class="tf-pending">
+    <h2>아직 선택하지 않음 <span id="tf-count-none">0</span></h2>
+    <ul id="tf-list-none" class="tf-names"></ul>
+</section>
+<button type="button" id="tf-reset" class="item-btn">선택 초기화</button>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/truefalse_host.js') }}"></script>
+{% endblock %}

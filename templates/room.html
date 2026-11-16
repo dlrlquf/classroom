@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ room.name }}{% endblock %}
+
+{% block host_content %}
+<h1>{{ room.name }}</h1>
+{% if room.apps %}
+<ul class="app-list">
+    {% for app in room.apps %}
+    <li>
+        {% if app.ready %}
+        <a class="app-card" href="{{ url_for('main.app_page', app_id=app.id) }}">
+            <strong>{{ app.name }}</strong>
+            <span>{{ app.description }}</span>
+        </a>
+        {% else %}
+        <div class="app-card disabled" aria-disabled="true">
+            <strong>{{ app.name }} <small>(준비 중)</small></strong>
+            <span>{{ app.description }}</span>
+        </div>
+        {% endif %}
+    </li>
+    {% endfor %}
+</ul>
+{% else %}
+<p>아직 준비된 앱이 없습니다.</p>
+{% endif %}
+{% endblock %}

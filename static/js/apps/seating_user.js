@@ -1,0 +1,1 @@
+registerUserApp('seating', () => () => {});

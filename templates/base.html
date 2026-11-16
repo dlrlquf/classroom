@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}그림 맞히기{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="{{ 'user-page' if request.endpoint == 'main.user' else 'host-page' }}">
+    {% if request.endpoint != 'main.user' %}
+    {% include 'header.html' %}
+    <div class="host-layout{{ ' no-sidebar' if request.endpoint == 'main.home' }}">
+        {% if request.endpoint != 'main.home' %}{% include 'user_list.html' %}{% endif %}
+        <main>
+            {% block host_content %}{% endblock %}
+        </main>
+        {% include 'join_info.html' %}
+    </div>
+    {% else %}
+    <main>
+        {% block user_content %}{% endblock %}
+    </main>
+    {% endif %}
+    <script src="{{ url_for('static', filename='js/socket.io.min.js') }}"></script>
+    <script>const socket = io();</script>
+    {% if request.endpoint != 'main.user' %}
+    <script src="{{ url_for('static', filename='js/participants.js') }}"></script>
+    {% endif %}
+    {% block scripts %}{% endblock %}
+</body>
+</html>

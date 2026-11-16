@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+
+{% block title %}땅따먹기{% endblock %}
+
+{% block host_content %}
+<h1>땅따먹기</h1>
+<section class="admin-game landgrab-controls">
+    <h2>게임 설정</h2>
+    <label for="landgrab-interval">자원 획득 주기 (초)</label>
+    <input id="landgrab-interval" type="number" min="10" max="600"
+        step="1" value="60" required>
+    <label for="landgrab-cost-increase">시작 도시로부터 거리당 구매 비용 증가율 (%)</label>
+    <input id="landgrab-cost-increase" type="number" min="10" max="100"
+        step="1" value="10" required>
+    <p>거리가 한 칸 늘 때마다 기본 비용에 설정한 비율을 더하며, 소수점은 버립니다.</p>
+    <button type="button" id="landgrab-start" class="item-btn">지도 생성 및 게임 시작</button>
+    <button type="button" id="landgrab-stop" class="item-btn" disabled>게임 종료</button>
+    <p id="landgrab-host-status" role="status" aria-live="polite">
+        주기와 거리당 비용 증가율을 설정하고 게임을 시작하세요.
+    </p>
+</section>
+
+<section class="landgrab-legend">
+    <h2>지형과 자원 생산량 (주기당)</h2>
+    <ul>
+        <li>초원: 식량 +2</li>
+        <li>사막: 식량 +1</li>
+        <li>숲: 목재 +2, 식량 +1</li>
+        <li>산: 석재 +2</li>
+        <li>물: 구매 불가</li>
+    </ul>
+</section>
+
+<section>
+    <h2>지도</h2>
+    <div id="landgrab-host-map" class="landgrab-map-wrap"></div>
+</section>
+
+<section>
+    <h2>참가자 현황</h2>
+    <div id="landgrab-player-list" class="landgrab-player-list"></div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/landgrab_host.js') }}"></script>
+{% endblock %}

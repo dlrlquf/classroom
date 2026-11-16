@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+
+{% block title %}응답 수집{% endblock %}
+
+{% block host_content %}
+<h1>응답 수집</h1>
+<section class="response-launch">
+    <h2>활동 배포</h2>
+    <label for="response-prompt">질문</label>
+    <input id="response-prompt" maxlength="120" placeholder="질문을 입력하세요">
+    <div class="response-launch-buttons">
+        <button type="button" class="item-btn" data-response-type="truefalse">참 / 거짓</button>
+        <button type="button" class="item-btn" data-response-type="scale">1~5 선택</button>
+        <button type="button" class="item-btn" data-response-type="short_text">짧은 답변</button>
+    </div>
+    <p id="response-host-status" role="status" aria-live="polite"></p>
+</section>
+
+<section id="response-current" hidden>
+    <h2>현재 활동: <span id="response-type-name"></span></h2>
+    <p id="response-current-prompt"></p>
+    <label class="response-visibility">
+        <input id="response-results-visible" type="checkbox" checked>
+        실시간 응답 결과 표시
+    </label>
+    <div id="response-results">
+        <p>응답 <strong id="response-total">0</strong>개</p>
+        <div id="response-breakdown" class="response-breakdown"></div>
+        <h3>참가자 응답</h3>
+        <ol id="response-answers" class="response-answers"></ol>
+    </div>
+    <button type="button" id="response-stop" class="item-btn">응답 마감</button>
+</section>
+
+<section class="response-history">
+    <h2>이전 실행 (최근 10회)</h2>
+    <div id="response-history-list"></div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/responses_host.js') }}"></script>
+{% endblock %}
