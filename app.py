@@ -18,6 +18,8 @@ import responses  # noqa: F401  (소켓 이벤트 핸들러 등록용)
 import seating  # noqa: F401  (소켓 이벤트 핸들러 등록용)
 import truefalse  # noqa: F401  (소켓 이벤트 핸들러 등록용)
 
+PORT = 5000
+
 # PyInstaller 실행 파일은 임시 폴더에서 풀리므로 DB와 비밀키는 실행 파일 옆에 둔다.
 if getattr(sys, "frozen", False):
     base_dir = os.path.dirname(sys.executable)
@@ -59,12 +61,13 @@ app.config["ADMIN_ALLOWED_IPS"] = {
     if address.strip()
 }
 app.register_blueprint(bp)
+app.register_blueprint(landgrab.bp)
 init_database(app)
 socketio.init_app(app)
 
     
 if __name__ == '__main__':
     threading.Timer(
-        1.0, webbrowser.open, args=("http://127.0.0.1:5000/",)
+        1.0, webbrowser.open, args=(f"http://127.0.0.1:{PORT}/",)
     ).start()
-    socketio.run(app, host='0.0.0.0', port=5000)
+    socketio.run(app, host='0.0.0.0', port=PORT)

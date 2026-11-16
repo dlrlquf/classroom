@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+
+{% block title %}땅따먹기{% endblock %}
+
+{% block host_content %}
+<h1>땅따먹기</h1>
+<section id="landgrab-option" class="admin-game landgrab-controls">
+    <h2>게임 설정</h2>
+    <label for="landgrab-interval">자원 획득 주기 (초)</label>
+    <input id="landgrab-interval" type="number" min="10" max="600"
+        step="1" value="60" required>
+    <label for="landgrab-cost-increase">가장 가까운 도시로부터 거리당 구매 비용 증가율 (%)</label>
+    <input id="landgrab-cost-increase" type="number" min="10" max="100"
+        step="1" value="10" required>
+    <p>거리가 한 칸 늘 때마다 기본 비용에 설정한 비율을 더하며, 소수점은 버립니다.</p>
+    <p>다른 참가자의 땅은 구매 비용이 두 배이며, 건물 인수 시 건설 비용도 두 배로 추가됩니다.
+        마지막 도시를 잃은 참가자는 탈락하고 남은 영토와 건물은 사라집니다.</p>
+    <p>도시와 연결되지 않은 땅은 생산·건설이 중단되며 인접한 땅을 구매할 수 없습니다.
+        도시와 다시 연결되면 활성화됩니다.</p>
+    <label for="landgrab-ai-count">AI 플레이어 수</label>
+    <input id="landgrab-ai-count" type="number" min="0" max="10" step="1" value="0" required>
+    <p>AI는 10초마다 땅을 구매하거나 건설하며, 다른 플레이어의 땅도 공격합니다.</p>
+    <label for="landgrab-map-width">지도 가로 (칸)</label>
+    <input id="landgrab-map-width" type="number" min="3" max="100"
+        step="1" value="9" required>
+    <label for="landgrab-map-height">지도 세로 (칸)</label>
+    <input id="landgrab-map-height" type="number" min="3" max="100"
+        step="1" value="9" required>
+    <p>지도는 가로와 세로 각각 3~100칸으로 설정할 수 있습니다.</p>
+    <label for="landgrab-map-generation">지형 생성 방식</label>
+    <select id="landgrab-map-generation">
+        <option value="random">무작위</option>
+        <option value="noise">노이즈 (지형이 자연스럽게 이어짐)</option>
+        <option value="world">실제 지도: 전 세계</option>
+        <option value="korea">실제 지도: 한반도</option>
+    </select>
+    <p>실제 지도는 저장된 지형을 선택한 칸 수로 축소하며, 작은 섬과 지형은 생략될 수 있습니다.</p>
+    <label><input id="landgrab-map-wrap" type="checkbox"> 지도 좌우 연결</label>
+    <p>선택하면 좌우 끝이 인접하고 지도를 계속 이동할 수 있습니다.
+        구매 비용은 좌우 연결을 포함한 최단 거리로 계산합니다.</p>
+    <button type="button" id="landgrab-start" class="item-btn">지도 생성 및 게임 시작</button>
+</section>
+<p id="landgrab-host-status" role="status" aria-live="polite">
+    주기, 거리당 비용 증가율과 지도 크기를 설정하고 게임을 시작하세요.
+</p>
+<button type="button" id="landgrab-stop" class="item-btn">게임 종료</button>
+
+<section class="landgrab-legend">
+    <h2>지형과 자원 생산량 (주기당)</h2>
+    <ul>
+        <li>초원: <span data-landgrab-resource="food">식량</span> +2</li>
+        <li>사막: <span data-landgrab-resource="food">식량</span> +1</li>
+        <li>숲: <span data-landgrab-resource="wood">목재</span> +2, <span data-landgrab-resource="food">식량</span> +1</li>
+        <li>산: <span data-landgrab-resource="stone">석재</span> +2</li>
+        <li>물: 구매 불가</li>
+        <li>도시: 모든 자원 +1, 가장 가까운 도시까지 거리로 구매 비용 계산</li>
+    </ul>
+</section>
+
+<section>
+    <h2>지도</h2>
+    <p>지도를 드래그하여 이동하세요.</p>
+    <div id="landgrab-host-map" class="landgrab-map-wrap" tabindex="0"
+        role="region" aria-label="땅따먹기 지도"></div>
+</section>
+
+<section>
+    <h2>참가자 현황</h2>
+    <div id="landgrab-player-list" class="landgrab-player-list"></div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('landgrab.static', filename='js/landgrab_map.js') }}"></script>
+<script src="{{ url_for('landgrab.static', filename='js/landgrab_host.js') }}"></script>
+{% endblock %}

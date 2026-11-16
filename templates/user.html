@@ -39,5 +39,11 @@
 {% endblock %}
 
 {% block scripts %}
+<script>
+    const userAppScriptUrls = {
+        landgrab: {{ url_for('landgrab.static', filename='js/landgrab_user.js') | tojson }}
+    };
+</script>
+<script src="{{ url_for('landgrab.static', filename='js/landgrab_map.js') }}"></script>
 <script src="{{ url_for('static', filename='js/user.js') }}"></script>
 {% endblock %}

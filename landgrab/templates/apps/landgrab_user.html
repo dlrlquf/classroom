@@ -1,0 +1,30 @@
+<section class="landgrab-user">
+    <div id="landgrab-build-warning" class="landgrab-build-warning" role="alert" hidden></div>
+    <h1>땅따먹기</h1>
+    <p id="landgrab-user-status" role="status" aria-live="polite">
+        호스트가 지도를 생성하기를 기다리는 중입니다.
+    </p>
+    <section>
+        <h2>지도</h2>
+        <div class="landgrab-map-layout">
+            <aside id="landgrab-tile-panel" class="landgrab-tile-panel"
+                aria-labelledby="landgrab-tile-panel-title" hidden>
+                <div class="landgrab-tile-panel-header">
+                    <h2 id="landgrab-tile-panel-title">선택한 타일</h2>
+                    <button id="landgrab-tile-panel-close" type="button" class="item-btn">닫기</button>
+                </div>
+                <div id="landgrab-tile-actions" aria-live="polite"></div>
+            </aside>
+            <div class="landgrab-map-stage">
+                <div id="landgrab-user-map" class="landgrab-map-wrap" tabindex="0"
+                    role="region" aria-label="땅따먹기 지도"></div>
+                <div class="landgrab-map-hud">
+                    <div id="landgrab-resources" class="landgrab-resources" aria-label="내 자원"></div>
+                    <div class="landgrab-map-timer">다음 자원 <strong id="landgrab-resource-timer">--:--</strong></div>
+                    <button id="landgrab-my-city" class="item-btn landgrab-city-button"
+                        type="button" disabled>내 도시</button>
+                </div>
+            </div>
+        </div>
+    </section>
+</section>

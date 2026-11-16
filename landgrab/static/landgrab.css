@@ -1,0 +1,310 @@
+.landgrab-controls {
+    display: grid;
+    justify-items: start;
+    gap: 10px;
+}
+
+#landgrab-interval {
+    width: 140px;
+    min-height: 42px;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+}
+
+.landgrab-legend ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 24px;
+}
+
+.landgrab-user {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+}
+
+.landgrab-user section h2 {
+    margin-bottom: 10px;
+}
+
+#landgrab-user-status:empty {
+    display: none;
+}
+
+.landgrab-build-warning {
+    position: fixed;
+    top: max(12px, env(safe-area-inset-top));
+    left: 50%;
+    z-index: 1000;
+    width: max-content;
+    max-width: calc(100vw - 24px);
+    padding: 10px 16px;
+    border-radius: 8px;
+    background: #b91c1c;
+    color: #fff;
+    box-shadow: var(--shadow);
+    transform: translateX(-50%);
+    pointer-events: none;
+}
+
+.landgrab-map-layout {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.landgrab-map-stage {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+}
+
+.landgrab-map-hud {
+    position: absolute;
+    inset: 12px;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    align-items: start;
+    pointer-events: none;
+}
+
+.landgrab-map-hud .landgrab-resources {
+    min-width: 0;
+    width: 100%;
+    gap: 4px;
+}
+
+.landgrab-map-hud .landgrab-resource,
+.landgrab-map-timer {
+    padding: 4px 7px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    box-shadow: var(--shadow);
+    font-size: 0.8rem;
+}
+
+.landgrab-map-hud .landgrab-resource {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+}
+
+.landgrab-map-timer {
+    grid-column: 2;
+    white-space: nowrap;
+}
+
+.landgrab-map-hud .landgrab-city-button {
+    grid-column: 3;
+    justify-self: end;
+    min-height: 44px;
+    padding: 0 10px;
+    font-size: 0.85rem;
+    white-space: nowrap;
+    pointer-events: auto;
+}
+
+.landgrab-tile-panel {
+    flex: 0 0 300px;
+    width: 300px;
+    max-height: min(500px, 60vh);
+    overflow: auto;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: var(--shadow);
+}
+
+@media (max-width: 700px) {
+    .landgrab-map-layout {
+        flex-direction: column-reverse;
+    }
+
+    .landgrab-map-stage,
+    .landgrab-tile-panel {
+        flex: none;
+        width: 100%;
+    }
+
+    .landgrab-tile-panel {
+        max-height: none;
+    }
+}
+
+.landgrab-tile-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.landgrab-tile-panel-header h2 {
+    margin: 0;
+}
+
+.landgrab-tile-owner {
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.landgrab-building-list {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.landgrab-building-list li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.landgrab-building-list li > div {
+    min-width: 0;
+}
+
+.landgrab-building-list .item-btn {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.landgrab-building-tooltip {
+    flex-shrink: 0;
+}
+
+.landgrab-building-tooltip .item-btn:disabled {
+    pointer-events: none;
+}
+
+.landgrab-map-wrap {
+    width: 100%;
+    height: min(500px, 60vh);
+    overflow: auto;
+    padding: 8px 0;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    touch-action: none;
+    cursor: grab;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.landgrab-map-wrap::-webkit-scrollbar {
+    display: none;
+}
+
+.landgrab-map-wrap.is-dragging,
+.landgrab-map-wrap.is-dragging .landgrab-hex[role="button"] {
+    cursor: grabbing;
+}
+
+.landgrab-map-wrap svg {
+    display: block;
+    margin: 0 auto;
+}
+
+.landgrab-hex-base {
+    stroke: #334155;
+    stroke-width: 2;
+    vector-effect: non-scaling-stroke;
+}
+
+.landgrab-owner-overlay {
+    pointer-events: none;
+}
+
+.landgrab-owner-border {
+    stroke-width: 4;
+    vector-effect: non-scaling-stroke;
+    pointer-events: none;
+}
+
+.landgrab-hex.inactive .landgrab-owner-overlay {
+    opacity: 0.4;
+}
+
+.landgrab-hex[role="button"] {
+    cursor: pointer;
+}
+
+.landgrab-hex.selected .landgrab-hex-base,
+.landgrab-hex[role="button"]:focus .landgrab-hex-base {
+    stroke: #f97316;
+    stroke-width: 5;
+}
+
+.landgrab-terrain-mark,
+.landgrab-building-mark,
+.landgrab-owner-mark,
+.landgrab-inactive-mark {
+    text-anchor: middle;
+    dominant-baseline: middle;
+    pointer-events: none;
+}
+
+.landgrab-terrain-mark {
+    fill: #1f2937;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.landgrab-building-mark {
+    fill: #1f2937;
+    font-size: 9px;
+    font-weight: 600;
+}
+
+.landgrab-owner-mark {
+    fill: #111827;
+    font-size: 8px;
+    font-weight: 600;
+}
+
+.landgrab-inactive-mark {
+    fill: #991b1b;
+    font-size: 9px;
+    font-weight: 700;
+    paint-order: stroke;
+    stroke: #fff;
+    stroke-width: 2px;
+    stroke-linejoin: round;
+}
+
+.landgrab-player-list,
+.landgrab-resources {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.landgrab-player-card,
+.landgrab-resource {
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+}
+
+.landgrab-player-card h3,
+.landgrab-player-card p {
+    margin: 4px 0;
+}
+
+.landgrab-player-color {
+    display: inline-block;
+    width: 0.8em;
+    height: 0.8em;
+    margin-right: 0.4em;
+    border-radius: 50%;
+}
+

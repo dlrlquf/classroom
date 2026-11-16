@@ -10,7 +10,11 @@ a = Analysis(
     ['app.py'],
     pathex=[],
     binaries=[],
-    datas=[('templates', 'templates'), ('static', 'static')],
+    datas=[
+        ('templates', 'templates'), ('static', 'static'),
+        ('landgrab/templates', 'landgrab/templates'),
+        ('landgrab/static', 'landgrab/static'), ('landgrab/data', 'landgrab/data'),
+    ],
     hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},

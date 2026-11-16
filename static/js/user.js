@@ -122,7 +122,8 @@ function loadScript(appId) {
     if (!scriptCache[appId]) {
         scriptCache[appId] = new Promise((resolve, reject) => {
             const script = document.createElement('script');
-            script.src = '/static/js/apps/' + encodeURIComponent(appId) + '_user.js';
+            script.src = userAppScriptUrls[appId] ||
+                '/static/js/apps/' + encodeURIComponent(appId) + '_user.js';
             script.onload = resolve;
             script.onerror = () => {
                 delete scriptCache[appId];
