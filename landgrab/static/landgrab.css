@@ -215,7 +215,7 @@
 
 .landgrab-hex-base {
     stroke: #334155;
-    stroke-width: 2;
+    stroke-width: 2em;
     vector-effect: non-scaling-stroke;
 }
 
@@ -224,7 +224,7 @@
 }
 
 .landgrab-owner-border {
-    stroke-width: 4;
+    stroke-width: 4em;
     vector-effect: non-scaling-stroke;
     pointer-events: none;
 }
@@ -237,10 +237,15 @@
     cursor: pointer;
 }
 
+.landgrab-hex.port-destination .landgrab-hex-base {
+    stroke: #facc15;
+    stroke-width: 4em;
+}
+
 .landgrab-hex.selected .landgrab-hex-base,
 .landgrab-hex[role="button"]:focus .landgrab-hex-base {
     stroke: #f97316;
-    stroke-width: 5;
+    stroke-width: 5em;
 }
 
 .landgrab-terrain-mark,
@@ -254,29 +259,29 @@
 
 .landgrab-terrain-mark {
     fill: #1f2937;
-    font-size: 14px;
+    font-size: 14em;
     font-weight: 700;
 }
 
 .landgrab-building-mark {
     fill: #1f2937;
-    font-size: 9px;
+    font-size: 9em;
     font-weight: 600;
 }
 
 .landgrab-owner-mark {
     fill: #111827;
-    font-size: 8px;
+    font-size: 8em;
     font-weight: 600;
 }
 
 .landgrab-inactive-mark {
     fill: #991b1b;
-    font-size: 9px;
+    font-size: 9em;
     font-weight: 700;
     paint-order: stroke;
     stroke: #fff;
-    stroke-width: 2px;
+    stroke-width: 0.222em;
     stroke-linejoin: round;
 }
 

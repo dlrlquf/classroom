@@ -1,23 +1,27 @@
+import json
 import logging
 import math
 import random
 import threading
 import time
+from collections import deque
+from functools import lru_cache
 from pathlib import Path
 
-from flask import Blueprint, request
+from flask import Blueprint, jsonify, request
 from flask_socketio import join_room
 
 import lobby
 from extensions import socketio
 
-from .buildings import BUILDINGS, Building, City, Farm, LoggingSite, Mine
+from .buildings import BUILDINGS, Building, City, Farm, LoggingSite, Mine, Port
 from .resources import (
     RESOURCE_ICONS, RESOURCE_NAMES, RESOURCES, STARTING_RESOURCES,
-    Food, Resource, Stone, Wood,
+    Food, Iron, Luxury, Resource, Stone, Wood,
 )
 from .terrains import (
-    STARTING_TERRAINS, TERRAINS, Desert, Forest, Grass, Mountain, Terrain, Water,
+    STARTING_TERRAINS, TERRAINS, Coast, Cliff, Desert, Forest, Grass, Hill, Jungle,
+    Lake, Mountain, Plains, River, Rocks, Shrub, Snow, Terrain, Water, Wetland,
 )
 
 bp = Blueprint(
@@ -33,7 +37,7 @@ MAX_COST_INCREASE_RATE = 100
 DEFAULT_MAP_WIDTH = 9
 DEFAULT_MAP_HEIGHT = 9
 MIN_MAP_DIMENSION = 3
-MAX_MAP_DIMENSION = 100
+MAX_MAP_DIMENSION = 300
 MAX_AI_PLAYERS = 10
 AI_ACTION_INTERVAL = 10
 PLAYER_COLORS = (
@@ -45,12 +49,13 @@ PLAYER_COLORS = (
 
 NEIGHBORS = ((1, 0), (-1, 0), (0, 1), (0, -1), (1, -1), (-1, 1))
 USER_ROOM_PREFIX = "landgrab_user:"
-NOISE_TERRAINS = ("water", "desert", "grass", "forest", "mountain")
+NOISE_TERRAINS = tuple(TERRAINS)
 REAL_MAP_FILES = {
     "world": "world.txt",
     "korea": "korea.txt",
 }
-MAP_TERRAINS = {"w": "water", "g": "grass", "d": "desert", "f": "forest", "m": "mountain"}
+MAP_TERRAINS = {terrain.code: terrain_id for terrain_id, terrain in TERRAINS.items()}
+DATA_DIRECTORY = Path(__file__).parent / "data"
 logger = logging.getLogger(__name__)
 
 
@@ -62,16 +67,39 @@ _cost_increase_rate = MIN_COST_INCREASE_RATE
 _map_width = DEFAULT_MAP_WIDTH
 _map_height = DEFAULT_MAP_HEIGHT
 _map_generation = "random"
+_map_size = None
+_map_country = None
 _map_wrap = False
 _next_resource_at = None
 _tiles = {}
 _players = {}
+_port_links = set()
 
 
 def _is_host():
     from routes import _is_admin_ip_allowed
 
     return _is_admin_ip_allowed()
+
+
+@lru_cache(maxsize=1)
+def _countries():
+    return json.loads((DATA_DIRECTORY / "countries.json").read_text(encoding="utf-8"))
+
+
+@bp.get("/countries")
+def country_list():
+    return jsonify(_countries())
+
+
+def _preset_dimensions(width, source_width, source_height):
+    width = max(MIN_MAP_DIMENSION, min(
+        width, MAX_MAP_DIMENSION * source_width // source_height,
+    ))
+    height = max(MIN_MAP_DIMENSION, min(
+        MAX_MAP_DIMENSION, round(width * source_height / source_width),
+    ))
+    return width, height
 
 
 def _noise_value(x, y, values):
@@ -89,10 +117,14 @@ def _noise_value(x, y, values):
     return top + (bottom - top) * dy
 
 
-def _make_map(width, height, generation="random"):
+def _make_map(width, height, generation="random", country_id=None):
     source = None
-    if generation in REAL_MAP_FILES:
-        path = Path(__file__).parent / "data" / REAL_MAP_FILES[generation]
+    if generation in REAL_MAP_FILES or generation == "country":
+        path = (
+            DATA_DIRECTORY / "country_maps" / (country_id + ".txt")
+            if generation == "country"
+            else DATA_DIRECTORY / REAL_MAP_FILES[generation]
+        )
         source = path.read_text(encoding="ascii").splitlines()
         if (
             not source
@@ -163,7 +195,24 @@ def _hex_distance(first, second):
     )
 
 
+def _tile_movable(tile):
+    building = BUILDINGS[tile["building"]] if tile["building"] is not None else None
+    return TERRAINS[tile["terrain"]].movable or bool(building and building.grants_movement)
+
+
 def _active_tiles_locked():
+    linked_ports = {}
+    for owner, first, second in _port_links:
+        first_tile = _tiles.get(first)
+        second_tile = _tiles.get(second)
+        if (
+            first_tile is None or second_tile is None
+            or first_tile["owner"] != owner or second_tile["owner"] != owner
+            or first_tile["building"] != "port" or second_tile["building"] != "port"
+        ):
+            continue
+        linked_ports.setdefault(first, []).append(second)
+        linked_ports.setdefault(second, []).append(first)
     active = {
         position for position, tile in _tiles.items()
         if tile["owner"] is not None and tile["building"] == "city"
@@ -171,13 +220,45 @@ def _active_tiles_locked():
     pending = list(active)
     while pending:
         position = pending.pop()
-        owner = _tiles[position]["owner"]
-        for neighbor in _neighbor_coordinates(*position, _map_width, _map_wrap):
+        current = _tiles[position]
+        if not _tile_movable(current):
+            continue
+        owner = current["owner"]
+        neighbors = _neighbor_coordinates(*position, _map_width, _map_wrap)
+        neighbors.extend(linked_ports.get(position, ()))
+        for neighbor in neighbors:
             tile = _tiles.get(neighbor)
             if tile is not None and tile["owner"] == owner and neighbor not in active:
                 active.add(neighbor)
                 pending.append(neighbor)
     return active
+
+
+def _sea_distance_locked(client_id, source, target):
+    pending = deque([(source, 0)])
+    visited = {source}
+    while pending:
+        position, distance = pending.popleft()
+        for neighbor in _neighbor_coordinates(*position, _map_width, _map_wrap):
+            if neighbor in visited:
+                continue
+            tile = _tiles.get(neighbor)
+            if (
+                tile is None or tile["terrain"] not in ("water", "coast")
+                or tile["owner"] not in (None, client_id)
+            ):
+                continue
+            if neighbor == target:
+                return distance + 1
+            visited.add(neighbor)
+            pending.append((neighbor, distance + 1))
+    return None
+
+
+def _discard_port_links(positions):
+    _port_links.difference_update(
+        link for link in tuple(_port_links) if link[1] in positions or link[2] in positions
+    )
 
 
 def _owned_buildings_locked(client_id):
@@ -231,6 +312,7 @@ def _tile_payload(tile, client_id=None, owned_buildings=None, include_building=T
         "terrain": tile["terrain"],
         "terrain_name": settings.name,
         "color": settings.color,
+        "movable": _tile_movable(tile),
         "owner": owner["name"] if owner else None,
         "owner_color": owner.get("color") if owner else None,
         "active": active if tile["owner"] is not None else None,
@@ -282,7 +364,11 @@ def _has_neighbor_locked(client_id, q, r, active_tiles=None):
     if active_tiles is None:
         active_tiles = _active_tiles_locked()
     for neighbor in _neighbor_coordinates(q, r, _map_width, _map_wrap):
-        if neighbor in active_tiles and _tiles[neighbor]["owner"] == client_id:
+        if (
+            neighbor in active_tiles
+            and _tiles[neighbor]["owner"] == client_id
+            and _tile_movable(_tiles[neighbor])
+        ):
             return True
     return False
 
@@ -291,7 +377,7 @@ def _purchase_error_locked(client_id, tile, cost, active_tiles=None):
     if tile["owner"] == client_id or cost is None:
         return "해당 땅을 구매할 수 없습니다."
     if not _has_neighbor_locked(client_id, tile["q"], tile["r"], active_tiles):
-        return "도시와 연결된 내 땅에 인접한 땅만 구매할 수 있습니다."
+        return "도시와 연결되고 이동 가능한 내 땅에 인접한 땅만 구매할 수 있습니다."
     if any(_players[client_id]["resources"][resource] < amount for resource, amount in cost.items()):
         return "자원이 부족합니다."
     return None
@@ -357,16 +443,22 @@ def _buy_locked(client_id, tile, include_building, quote):
     captured_city = previous_owner is not None and tile["building"] == "city"
     tile["owner"] = client_id
     if previous_owner is not None and not include_building:
+        if tile["building"] == "port":
+            _discard_port_links({(tile["q"], tile["r"])})
         tile["building"] = None
     if captured_city and not any(
         other["owner"] == previous_owner and other["building"] == "city"
         for other in _tiles.values()
     ):
         _players[previous_owner]["eliminated"] = True
+        removed_ports = set()
         for other in _tiles.values():
             if other["owner"] == previous_owner:
+                if other["building"] == "port":
+                    removed_ports.add((other["q"], other["r"]))
                 other["owner"] = None
                 other["building"] = None
+        _discard_port_links(removed_ports)
     return None
 
 
@@ -416,21 +508,27 @@ def _assign_player_locked(client_id, name):
     return True
 
 
-def _user_state_locked(client_id, active_tiles=None):
+def _user_state_locked(client_id, active_tiles=None, public_tiles=None):
     if active_tiles is None:
         active_tiles = _active_tiles_locked()
+    if public_tiles is None:
+        public_tiles = _public_tiles_locked(active_tiles)
     player = _players.get(client_id)
     if player is None:
         return {
             "phase": _phase,
             "eliminated": False,
-            "tiles": _public_tiles_locked(active_tiles),
+            "tiles": public_tiles,
             "map_width": _map_width,
             "map_wrap": _map_wrap,
             "resources": {},
             "production": {},
             "buyable": [],
             "resource_interval": _resource_interval,
+            "game_id": _game_id,
+            "cost_increase_rate": _cost_increase_rate,
+            "port_cost": dict(BUILDINGS["port"].cost),
+            "port_links": [],
             "resource_seconds_remaining": _resource_seconds_remaining_locked(),
             "resource_names": RESOURCE_NAMES,
             "resource_icons": RESOURCE_ICONS,
@@ -440,11 +538,17 @@ def _user_state_locked(client_id, active_tiles=None):
     buyable = []
     owned_buildings = _owned_buildings_locked(client_id)
     if _phase == "running" and not player.get("eliminated", False):
+        adjacent = {
+            neighbor
+            for position in active_tiles
+            if _tiles[position]["owner"] == client_id and _tile_movable(_tiles[position])
+            for neighbor in _neighbor_coordinates(*position, _map_width, _map_wrap)
+        }
         for key, tile in _tiles.items():
             if (
                 tile["owner"] != client_id
                 and TERRAINS[tile["terrain"]].cost is not None
-                and _has_neighbor_locked(client_id, *key, active_tiles)
+                and key in adjacent
             ):
                 buyable.append(_tile_payload(tile, client_id, owned_buildings, active_tiles=active_tiles))
     owned = [
@@ -460,7 +564,7 @@ def _user_state_locked(client_id, active_tiles=None):
     return {
         "phase": _phase,
         "eliminated": player.get("eliminated", False),
-        "tiles": _public_tiles_locked(active_tiles),
+        "tiles": public_tiles,
         "map_width": _map_width,
         "map_wrap": _map_wrap,
         "resources": dict(player["resources"]),
@@ -468,15 +572,32 @@ def _user_state_locked(client_id, active_tiles=None):
         "owned": owned,
         "buyable": buyable,
         "resource_interval": _resource_interval,
+        "game_id": _game_id,
+        "cost_increase_rate": _cost_increase_rate,
+        "port_cost": dict(BUILDINGS["port"].cost),
+        "port_links": [
+            {
+                "source": {"q": first[0], "r": first[1]},
+                "target": {"q": second[0], "r": second[1]},
+                "active": (
+                    first in active_tiles and second in active_tiles
+                    and _tiles[first]["owner"] == client_id and _tiles[second]["owner"] == client_id
+                    and _tiles[first]["building"] == "port" and _tiles[second]["building"] == "port"
+                ),
+            }
+            for owner, first, second in _port_links if owner == client_id
+        ],
         "resource_seconds_remaining": _resource_seconds_remaining_locked(),
         "resource_names": RESOURCE_NAMES,
         "resource_icons": RESOURCE_ICONS,
     }
 
 
-def _host_state_locked(active_tiles=None):
+def _host_state_locked(active_tiles=None, public_tiles=None):
     if active_tiles is None:
         active_tiles = _active_tiles_locked()
+    if public_tiles is None:
+        public_tiles = _public_tiles_locked(active_tiles)
     return {
         "phase": _phase,
         "resource_interval": _resource_interval,
@@ -484,11 +605,17 @@ def _host_state_locked(active_tiles=None):
         "map_width": _map_width,
         "map_height": _map_height,
         "map_generation": _map_generation,
+        "map_size": _map_size,
+        "map_country": _map_country,
         "map_wrap": _map_wrap,
         "ai_count": sum(player.get("is_ai", False) for player in _players.values()),
         "resource_names": RESOURCE_NAMES,
         "resource_icons": RESOURCE_ICONS,
-        "tiles": _public_tiles_locked(active_tiles),
+        "terrains": [
+            {"name": terrain.name, "production": terrain.production, "movable": terrain.movable}
+            for terrain in TERRAINS.values()
+        ],
+        "tiles": public_tiles,
         "players": [
             {
                 "client_id": client_id,
@@ -509,9 +636,10 @@ def _host_state_locked(active_tiles=None):
 def _broadcast_locked_state():
     with _lock:
         active_tiles = _active_tiles_locked()
-        host_state = _host_state_locked(active_tiles)
+        public_tiles = _public_tiles_locked(active_tiles)
+        host_state = _host_state_locked(active_tiles, public_tiles)
         user_states = [
-            (client_id, _user_state_locked(client_id, active_tiles))
+            (client_id, _user_state_locked(client_id, active_tiles, public_tiles))
             for client_id, player in _players.items()
             if not player.get("is_ai", False)
         ]
@@ -574,7 +702,8 @@ def _ai_take_turn_locked(client_id):
                 if error is None:
                     score = 1 + sum(building.production_bonus.values())
                     actions.append((score, "build", position, building.type_id, True))
-        neighbors.update(_neighbor_coordinates(*position, _map_width, _map_wrap))
+        if _tile_movable(tile):
+            neighbors.update(_neighbor_coordinates(*position, _map_width, _map_wrap))
 
     for position in neighbors:
         tile = _tiles.get(position)
@@ -659,7 +788,7 @@ def on_landgrab_sync():
 def on_landgrab_start(data=None):
     global _game_id, _phase, _resource_interval, _cost_increase_rate
     global _map_width, _map_height, _map_generation, _map_wrap
-    global _next_resource_at, _tiles, _players
+    global _map_size, _map_country, _next_resource_at, _tiles, _players
 
     if not _is_host():
         return {"ok": False, "message": "호스트만 게임을 시작할 수 있습니다."}
@@ -687,8 +816,44 @@ def on_landgrab_start(data=None):
             "ok": False,
             "message": "거리당 구매 비용 증가율은 10~100% 사이여야 합니다.",
         }
-    map_width = data.get("map_width", DEFAULT_MAP_WIDTH)
-    map_height = data.get("map_height", DEFAULT_MAP_HEIGHT)
+    map_generation = data.get("map_generation", "random")
+    if map_generation not in ("random", "noise", "world", "korea", "country"):
+        return {"ok": False, "message": "지도 생성 방식이 올바르지 않습니다."}
+    map_size = data.get("map_size")
+    map_country = None
+    if map_size is not None:
+        if (
+            isinstance(map_size, bool)
+            or not isinstance(map_size, int)
+            or not 30 <= map_size <= MAX_MAP_DIMENSION
+            or map_size % 30
+        ):
+            return {"ok": False, "message": "지도 크기 단계를 선택해 주세요."}
+        if map_generation == "country":
+            map_country = data.get("map_country")
+            try:
+                country = next(
+                    (item for item in _countries() if item["id"] == map_country), None,
+                )
+            except (OSError, UnicodeError, ValueError):
+                logger.exception("국가 지도 목록을 불러오지 못했습니다.")
+                return {"ok": False, "message": "국가 지도 목록을 불러오지 못했습니다."}
+            if country is None:
+                return {"ok": False, "message": "지도에 사용할 국가를 선택해 주세요."}
+            map_width, map_height = _preset_dimensions(
+                map_size, country["width"], country["height"],
+            )
+        elif map_generation == "world":
+            map_width, map_height = _preset_dimensions(map_size, 100, 70)
+        elif map_generation == "korea":
+            map_width, map_height = _preset_dimensions(map_size, 160, 220)
+        else:
+            map_width = map_height = map_size
+    else:
+        if map_generation == "country":
+            return {"ok": False, "message": "지도 크기 단계를 선택해 주세요."}
+        map_width = data.get("map_width", DEFAULT_MAP_WIDTH)
+        map_height = data.get("map_height", DEFAULT_MAP_HEIGHT)
     if any(
         isinstance(dimension, bool)
         or not isinstance(dimension, int)
@@ -697,11 +862,8 @@ def on_landgrab_start(data=None):
     ):
         return {
             "ok": False,
-            "message": "지도 크기는 가로와 세로 각각 3~100칸 사이여야 합니다.",
+            "message": f"지도 크기는 가로와 세로 각각 {MIN_MAP_DIMENSION}~{MAX_MAP_DIMENSION}칸 사이여야 합니다.",
         }
-    map_generation = data.get("map_generation", "random")
-    if map_generation not in ("random", "noise", "world", "korea"):
-        return {"ok": False, "message": "지도 생성 방식이 올바르지 않습니다."}
     map_wrap = data.get("map_wrap", False)
     if not isinstance(map_wrap, bool):
         return {"ok": False, "message": "지도 좌우 연결 설정이 올바르지 않습니다."}
@@ -716,13 +878,13 @@ def on_landgrab_start(data=None):
         (f"ai:{index}", f"AI {index}", True) for index in range(1, ai_count + 1)
     ]
     try:
-        tiles = _make_map(map_width, map_height, map_generation)
+        tiles = _make_map(map_width, map_height, map_generation, map_country)
     except (OSError, UnicodeError, ValueError):
         logger.exception("실제 지도 데이터를 불러오지 못했습니다: %s", map_generation)
         return {"ok": False, "message": "지도 데이터를 불러오지 못했습니다."}
     starts = _start_positions(tiles, len(participants), map_width, map_wrap)
     attempts = 0
-    while starts is None and attempts < 100 and map_generation not in REAL_MAP_FILES:
+    while starts is None and attempts < 100 and map_generation not in (*REAL_MAP_FILES, "country"):
         tiles = _make_map(map_width, map_height, map_generation)
         starts = _start_positions(tiles, len(participants), map_width, map_wrap)
         attempts += 1
@@ -737,10 +899,13 @@ def on_landgrab_start(data=None):
         _map_width = map_width
         _map_height = map_height
         _map_generation = map_generation
+        _map_size = map_size
+        _map_country = map_country
         _map_wrap = map_wrap
         _next_resource_at = time.monotonic() + interval
         _tiles = tiles
         _players = {}
+        _port_links.clear()
         _phase = "running"
         for ((q, r), (client_id, name, is_ai)) in zip(starts, participants):
             _tiles[(q, r)]["owner"] = client_id
@@ -851,6 +1016,79 @@ def on_landgrab_tile_info(data=None):
             }
             result["purchase_error"] = result["purchase_options"]["with_building"]["error"]
         return result
+
+
+@socketio.on("landgrab_build_linked_port")
+def on_landgrab_build_linked_port(data=None):
+    client_id, _user = lobby.get_user_by_sid(request.sid)
+    if client_id is None:
+        return {"ok": False, "message": "먼저 접속해 주세요."}
+    if not isinstance(data, dict):
+        return {"ok": False, "message": "연결 항구 정보가 올바르지 않습니다."}
+    source = data.get("source")
+    target = data.get("target")
+    if not isinstance(source, dict) or not isinstance(target, dict):
+        return {"ok": False, "message": "항구 좌표가 올바르지 않습니다."}
+    coordinates = (source.get("q"), source.get("r"), target.get("q"), target.get("r"))
+    if any(isinstance(value, bool) or not isinstance(value, int) for value in coordinates):
+        return {"ok": False, "message": "항구 좌표가 올바르지 않습니다."}
+    if (
+        isinstance(data.get("game_id"), bool) or not isinstance(data.get("game_id"), int)
+        or isinstance(data.get("expected_distance"), bool)
+        or not isinstance(data.get("expected_distance"), int)
+        or data["expected_distance"] < 1 or not isinstance(data.get("expected_cost"), dict)
+    ):
+        return {"ok": False, "message": "항구 건설 비용 정보가 올바르지 않습니다."}
+    source_position = coordinates[:2]
+    target_position = coordinates[2:]
+    with _lock:
+        player = _players.get(client_id)
+        if (
+            _phase != "running" or player is None or player.get("eliminated", False)
+            or data.get("game_id") != _game_id
+        ):
+            return {"ok": False, "message": "게임 상태가 변경되었습니다. 다시 선택해 주세요."}
+        source_tile = _tiles.get(source_position)
+        target_tile = _tiles.get(target_position)
+        active_tiles = _active_tiles_locked()
+        if (
+            source_tile is None or source_tile["owner"] != client_id
+            or source_tile["building"] != "port" or source_position not in active_tiles
+        ):
+            return {"ok": False, "message": "출발 항구가 사용 가능한 내 항구가 아닙니다."}
+        if (
+            target_tile is None or target_tile["terrain"] != "coast"
+            or target_tile["owner"] is not None or target_tile["building"] is not None
+        ):
+            return {"ok": False, "message": "소유자와 건물이 없는 연안에만 항구를 지을 수 있습니다."}
+        distance = _sea_distance_locked(client_id, source_position, target_position)
+        if distance is None:
+            return {"ok": False, "message": "연결 가능한 바닷길이 없습니다."}
+        owned_buildings = _owned_buildings_locked(client_id)
+        land_cost = _tile_payload(
+            target_tile, client_id, owned_buildings, active_tiles=active_tiles,
+        )["cost"]
+        if land_cost is None:
+            return {"ok": False, "message": "해당 연안을 구매할 수 없습니다."}
+        port_cost = {
+            resource: amount * (100 + distance * _cost_increase_rate) // 100
+            for resource, amount in BUILDINGS["port"].construction_cost(owned_buildings).items()
+        }
+        cost = dict(land_cost)
+        for resource, amount in port_cost.items():
+            cost[resource] = cost.get(resource, 0) + amount
+        if data.get("expected_distance") != distance or data.get("expected_cost") != cost:
+            return {"ok": False, "message": "바닷길 또는 비용이 변경되었습니다. 다시 선택해 주세요."}
+        if any(player["resources"][resource] < amount for resource, amount in cost.items()):
+            return {"ok": False, "message": "자원이 부족합니다."}
+        for resource, amount in cost.items():
+            player["resources"][resource] -= amount
+        target_tile["owner"] = client_id
+        target_tile["building"] = "port"
+        _port_links.add((client_id, source_position, target_position))
+        state = _user_state_locked(client_id)
+    _broadcast_locked_state()
+    return {"ok": True, **state}
 
 
 @socketio.on("landgrab_build")

@@ -15,26 +15,44 @@
     <p>거리가 한 칸 늘 때마다 기본 비용에 설정한 비율을 더하며, 소수점은 버립니다.</p>
     <p>다른 참가자의 땅은 구매 비용이 두 배이며, 건물 인수 시 건설 비용도 두 배로 추가됩니다.
         마지막 도시를 잃은 참가자는 탈락하고 남은 영토와 건물은 사라집니다.</p>
-    <p>도시와 연결되지 않은 땅은 생산·건설이 중단되며 인접한 땅을 구매할 수 없습니다.
-        도시와 다시 연결되면 활성화됩니다.</p>
+    <p>도시와 연결되지 않은 땅은 생산·건설이 중단됩니다. 이동 가능한 활성 땅에서만
+        인접한 땅을 구매할 수 있습니다. 항구는 해당 수역 타일의 통행을 허용합니다.</p>
+    <p>활성 항구에서 바닷길로 연결된 소유자 없는 연안에 연결 항구를 지을 수 있습니다.
+        연안 구매비와 별도로 항구 건설비가 바닷길 거리에 따라 증가합니다.</p>
     <label for="landgrab-ai-count">AI 플레이어 수</label>
     <input id="landgrab-ai-count" type="number" min="0" max="10" step="1" value="0" required>
     <p>AI는 10초마다 땅을 구매하거나 건설하며, 다른 플레이어의 땅도 공격합니다.</p>
-    <label for="landgrab-map-width">지도 가로 (칸)</label>
-    <input id="landgrab-map-width" type="number" min="3" max="100"
-        step="1" value="9" required>
-    <label for="landgrab-map-height">지도 세로 (칸)</label>
-    <input id="landgrab-map-height" type="number" min="3" max="100"
-        step="1" value="9" required>
-    <p>지도는 가로와 세로 각각 3~100칸으로 설정할 수 있습니다.</p>
+    <label for="landgrab-map-size">지도 크기</label>
+    <select id="landgrab-map-size">
+        <option value="30">아주 작음 (가로 30칸)</option>
+        <option value="60">작음 (가로 60칸)</option>
+        <option value="90">약간 작음 (가로 90칸)</option>
+        <option value="120">보통 (가로 120칸)</option>
+        <option value="150">약간 큼 (가로 150칸)</option>
+        <option value="180">큼 (가로 180칸)</option>
+        <option value="210">매우 큼 (가로 210칸)</option>
+        <option value="240">거대함 (가로 240칸)</option>
+        <option value="270">초거대함 (가로 270칸)</option>
+        <option value="300">어마어마함 (가로 300칸)</option>
+    </select>
+    <p>큰 지도는 타일이 작아지며 참가자가 많으면 기기와 네트워크에 부담이 될 수 있습니다.
+        실제 지도의 세로가 300칸을 넘으면 비율을 유지하며 전체 크기를 줄입니다.</p>
     <label for="landgrab-map-generation">지형 생성 방식</label>
     <select id="landgrab-map-generation">
         <option value="random">무작위</option>
         <option value="noise">노이즈 (지형이 자연스럽게 이어짐)</option>
         <option value="world">실제 지도: 전 세계</option>
         <option value="korea">실제 지도: 한반도</option>
+        <option value="country">실제 지도: 국가 선택</option>
     </select>
-    <p>실제 지도는 저장된 지형을 선택한 칸 수로 축소하며, 작은 섬과 지형은 생략될 수 있습니다.</p>
+    <div id="landgrab-country-option" hidden>
+        <label for="landgrab-country">국가</label>
+        <select id="landgrab-country" data-url="{{ url_for('landgrab.country_list') }}" disabled>
+            <option value="">국가 목록을 불러오는 중입니다.</option>
+        </select>
+    </div>
+    <p>국가 지도는 본토를 중심으로 주변 땅과 바다도 포함합니다.
+        실제 지도는 작은 섬과 지형이 생략될 수 있습니다.</p>
     <label><input id="landgrab-map-wrap" type="checkbox"> 지도 좌우 연결</label>
     <p>선택하면 좌우 끝이 인접하고 지도를 계속 이동할 수 있습니다.
         구매 비용은 좌우 연결을 포함한 최단 거리로 계산합니다.</p>
@@ -47,14 +65,8 @@
 
 <section class="landgrab-legend">
     <h2>지형과 자원 생산량 (주기당)</h2>
-    <ul>
-        <li>초원: <span data-landgrab-resource="food">식량</span> +2</li>
-        <li>사막: <span data-landgrab-resource="food">식량</span> +1</li>
-        <li>숲: <span data-landgrab-resource="wood">목재</span> +2, <span data-landgrab-resource="food">식량</span> +1</li>
-        <li>산: <span data-landgrab-resource="stone">석재</span> +2</li>
-        <li>물: 구매 불가</li>
-        <li>도시: 모든 자원 +1, 가장 가까운 도시까지 거리로 구매 비용 계산</li>
-    </ul>
+    <ul id="landgrab-terrain-list"></ul>
+    <p>도시는 식량·목재·석재를 각각 1씩 생산하며, 구매 비용은 가장 가까운 도시까지의 거리로 계산합니다.</p>
 </section>
 
 <section>

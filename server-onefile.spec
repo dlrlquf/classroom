@@ -13,7 +13,11 @@ a = Analysis(
     datas=[
         ('templates', 'templates'), ('static', 'static'),
         ('landgrab/templates', 'landgrab/templates'),
-        ('landgrab/static', 'landgrab/static'), ('landgrab/data', 'landgrab/data'),
+        ('landgrab/static', 'landgrab/static'),
+        ('landgrab/data/world.txt', 'landgrab/data'),
+        ('landgrab/data/korea.txt', 'landgrab/data'),
+        ('landgrab/data/countries.json', 'landgrab/data'),
+        ('landgrab/data/country_maps', 'landgrab/data/country_maps'),
     ],
     hiddenimports=hiddenimports,
     hookspath=[],

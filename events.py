@@ -403,7 +403,7 @@ def on_game_chat_message(data=None):
         ):
             normalized = re.sub(r"\s+", "", message).casefold()
             answer = re.sub(r"\s+", "", _round["word"]).casefold()
-            if normalized == answer:
+            if answer in normalized:
                 _round["solved"].add(request.sid)
                 _scores[request.sid] = _scores.get(request.sid, 0) + 1
                 elapsed = max(
@@ -424,7 +424,8 @@ def on_game_chat_message(data=None):
         }
         finish_early = is_correct and _should_finish_round_locked()
         state = _game_state_locked()
-        socketio.emit("game_chat", payload)
+        if not is_correct:
+            socketio.emit("game_chat", payload)
         if is_correct:
             socketio.emit("game_state", state)
     if finish_early:

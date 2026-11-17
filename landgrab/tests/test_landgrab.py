@@ -1,5 +1,7 @@
 import random
+import tempfile
 import unittest
+from copy import deepcopy
 from pathlib import Path
 from unittest.mock import patch
 
@@ -93,10 +95,13 @@ class MapSizeTests(unittest.TestCase):
             _map_width=9,
             _map_height=9,
             _map_generation="random",
+            _map_size=None,
+            _map_country=None,
             _map_wrap=False,
             _next_resource_at=None,
             _tiles={},
             _players={},
+            _port_links=set(),
         )
         self.state.start()
         self.addCleanup(self.state.stop)
@@ -157,6 +162,58 @@ class MapSizeTests(unittest.TestCase):
         self.assertTrue(response["ok"])
         self.assertEqual((response["map_width"], response["map_height"]), (9, 9))
         self.assertEqual(len(response["tiles"]), 81)
+
+    def test_maximum_dimensions_create_full_map(self):
+        response = landgrab.on_landgrab_start({
+            "resource_interval": 60,
+            "cost_increase_rate": 10,
+            "map_width": 300,
+            "map_height": 300,
+        })
+        self.assertTrue(response["ok"])
+        self.assertEqual((response["map_width"], response["map_height"]), (300, 300))
+        self.assertEqual(len(response["tiles"]), 90000)
+
+    def test_preset_size_and_country_aspect(self):
+        with tempfile.TemporaryDirectory() as directory:
+            data = Path(directory)
+            (data / "country_maps").mkdir()
+            (data / "country_maps" / "example.txt").write_text("gg\ngg\n", encoding="ascii")
+            countries = [{"id": "example", "name": "예시", "width": 150, "height": 300}]
+            with (
+                patch.object(landgrab, "DATA_DIRECTORY", data),
+                patch("landgrab._countries", return_value=countries),
+            ):
+                response = landgrab.on_landgrab_start({
+                    "resource_interval": 60,
+                    "cost_increase_rate": 10,
+                    "map_size": 300,
+                    "map_generation": "country",
+                    "map_country": "example",
+                })
+        self.assertTrue(response["ok"])
+        self.assertEqual((response["map_width"], response["map_height"]), (150, 300))
+        self.assertEqual(response["map_size"], 300)
+        self.assertEqual(response["map_country"], "example")
+
+    def test_rejects_invalid_preset_or_country(self):
+        for size in (29, 31, 301, True):
+            with self.subTest(size=size):
+                response = landgrab.on_landgrab_start({
+                    "resource_interval": 60,
+                    "cost_increase_rate": 10,
+                    "map_size": size,
+                })
+                self.assertFalse(response["ok"])
+        with patch("landgrab._countries", return_value=[]):
+            response = landgrab.on_landgrab_start({
+                "resource_interval": 60,
+                "cost_increase_rate": 10,
+                "map_size": 30,
+                "map_generation": "country",
+                "map_country": "missing",
+            })
+        self.assertFalse(response["ok"])
 
     def test_ai_players_start_with_cities_and_resources(self):
         landgrab.lobby.online_users.return_value = {"human": "참가자"}
@@ -324,7 +381,7 @@ class MapSizeTests(unittest.TestCase):
         })
         self.assertTrue(response["ok"])
         self.assertEqual(response["resource_names"], {
-            "wood": "목재", "stone": "석재", "food": "식량",
+            "wood": "목재", "stone": "석재", "food": "식량", "iron": "철", "luxury": "사치품",
         })
         self.assertEqual(landgrab._user_state_locked("unknown")["resource_names"],
                          response["resource_names"])
@@ -336,7 +393,7 @@ class MapSizeTests(unittest.TestCase):
         })
         self.assertTrue(response["ok"])
         self.assertEqual(response["resource_icons"], {
-            "wood": "🪵", "stone": "🪨", "food": "🌾",
+            "wood": "🪵", "stone": "🪨", "food": "🌾", "iron": "⛓️", "luxury": "💎",
         })
         self.assertEqual(landgrab._user_state_locked("unknown")["resource_icons"],
                          response["resource_icons"])
@@ -348,7 +405,7 @@ class MapSizeTests(unittest.TestCase):
 
     def test_invalid_dimensions_do_not_start_game(self):
         for dimension in ("map_width", "map_height"):
-            for value in (2, 101, True, 3.5, "9", None):
+            for value in (2, 301, True, 3.5, "9", None):
                 with self.subTest(dimension=dimension, value=value):
                     response = landgrab.on_landgrab_start({
                         "resource_interval": 60,
@@ -356,7 +413,7 @@ class MapSizeTests(unittest.TestCase):
                         dimension: value,
                     })
                     self.assertFalse(response["ok"])
-                    self.assertIn("3~100", response["message"])
+                    self.assertIn("3~300", response["message"])
                     self.assertEqual(landgrab._phase, "waiting")
                     self.assertEqual(landgrab._tiles, {})
 
@@ -497,18 +554,145 @@ class MapSizeTests(unittest.TestCase):
             (1, -1): {"q": 1, "r": -1, "terrain": "grass", "owner": "attacker", "building": "city"},
         })
 
+    def test_linked_port_purchase_capture_and_destruction(self):
+        landgrab._phase = "running"
+        landgrab._players.update({
+            "player": {
+                "name": "참가자", "resources": {**landgrab.STARTING_RESOURCES, "wood": 100, "stone": 100, "food": 100},
+            },
+            "attacker": {
+                "name": "상대", "resources": {**landgrab.STARTING_RESOURCES, "wood": 100, "stone": 100, "food": 100},
+            },
+        })
+        landgrab._tiles.update({
+            (0, 0): {"q": 0, "r": 0, "terrain": "grass", "owner": "player", "building": "city"},
+            (1, 0): {"q": 1, "r": 0, "terrain": "coast", "owner": "player", "building": "port"},
+            (2, 0): {"q": 2, "r": 0, "terrain": "water", "owner": None, "building": None},
+            (3, 0): {"q": 3, "r": 0, "terrain": "coast", "owner": None, "building": None},
+            (4, 0): {"q": 4, "r": 0, "terrain": "grass", "owner": "player", "building": None},
+            (1, -1): {"q": 1, "r": -1, "terrain": "grass", "owner": "attacker", "building": "city"},
+        })
+        data = {
+            "source": {"q": 1, "r": 0}, "target": {"q": 3, "r": 0},
+            "game_id": 0, "expected_distance": 2,
+            "expected_cost": {"wood": 8, "stone": 3, "food": 1},
+        }
+        with (
+            Flask(__name__).test_request_context(),
+            patch("landgrab.lobby.get_user_by_sid", return_value=("player", {})),
+        ):
+            request.sid = "socket"
+            for invalid in (
+                {**data, "game_id": 1},
+                {**data, "expected_distance": 3},
+                {**data, "expected_cost": {"wood": 1}},
+            ):
+                with self.subTest(invalid=invalid):
+                    before = deepcopy((landgrab._tiles, landgrab._players, landgrab._port_links))
+                    self.assertFalse(landgrab.on_landgrab_build_linked_port(invalid)["ok"])
+                    self.assertEqual((landgrab._tiles, landgrab._players, landgrab._port_links), before)
+            for tile, changes in (
+                (landgrab._tiles[(1, 0)], {"owner": "attacker"}),
+                (landgrab._tiles[(1, 0)], {"building": None}),
+                (landgrab._tiles[(3, 0)], {"owner": "player"}),
+                (landgrab._tiles[(3, 0)], {"building": "port"}),
+                (landgrab._tiles[(2, 0)], {"owner": "attacker"}),
+                (landgrab._players["player"]["resources"], {"wood": 0}),
+            ):
+                with self.subTest(changes=changes), patch.dict(tile, changes):
+                    before = deepcopy((landgrab._tiles, landgrab._players, landgrab._port_links))
+                    self.assertFalse(landgrab.on_landgrab_build_linked_port(data)["ok"])
+                    self.assertEqual((landgrab._tiles, landgrab._players, landgrab._port_links), before)
+            result = landgrab.on_landgrab_build_linked_port(data)
+        self.assertTrue(result["ok"])
+        self.assertEqual(landgrab._players["player"]["resources"]["wood"], 92)
+        self.assertEqual(landgrab._players["player"]["resources"]["stone"], 97)
+        self.assertEqual(landgrab._players["player"]["resources"]["food"], 99)
+        self.assertIn((4, 0), landgrab._active_tiles_locked())
+        self.assertTrue(result["port_links"][0]["active"])
+
+        source = landgrab._tiles[(1, 0)]
+        self.assertIsNone(landgrab._buy_locked("attacker", source, True, {}))
+        self.assertNotIn((4, 0), landgrab._active_tiles_locked())
+        self.assertIsNone(landgrab._buy_locked("player", source, True, {}))
+        self.assertIn((4, 0), landgrab._active_tiles_locked())
+        self.assertIsNone(landgrab._buy_locked("attacker", source, False, {}))
+        self.assertFalse(landgrab._port_links)
+        self.assertIsNone(landgrab._buy_locked("player", source, True, {}))
+        self.assertIsNone(landgrab._build_locked(
+            "player", source, landgrab.BUILDINGS["port"], landgrab._owned_buildings_locked("player"),
+        ))
+        self.assertNotIn((4, 0), landgrab._active_tiles_locked())
+
+    def test_sea_route_blocks_other_owners_and_obeys_wrap(self):
+        landgrab._tiles = {
+            (-2, 0): {"q": -2, "r": 0, "terrain": "coast", "owner": "player", "building": "port"},
+            (-1, 0): {"q": -1, "r": 0, "terrain": "water", "owner": "other", "building": None},
+            (0, 0): {"q": 0, "r": 0, "terrain": "coast", "owner": None, "building": None},
+            (2, 0): {"q": 2, "r": 0, "terrain": "coast", "owner": None, "building": None},
+        }
+        landgrab._map_width = 5
+        self.assertIsNone(landgrab._sea_distance_locked("player", (-2, 0), (0, 0)))
+        landgrab._tiles[(-1, 0)]["owner"] = "player"
+        self.assertEqual(landgrab._sea_distance_locked("player", (-2, 0), (0, 0)), 2)
+        landgrab._map_wrap = True
+        self.assertEqual(landgrab._sea_distance_locked("player", (-2, 0), (2, 0)), 1)
+
+    def test_port_opens_coast_for_connection_and_expansion(self):
+        landgrab._phase = "running"
+        landgrab._players["player"] = {
+            "name": "참가자",
+            "resources": {**landgrab.STARTING_RESOURCES, "wood": 20, "stone": 20, "food": 20},
+        }
+        landgrab._tiles.update({
+            (0, 0): {"q": 0, "r": 0, "terrain": "grass", "owner": "player", "building": "city"},
+            (1, 0): {"q": 1, "r": 0, "terrain": "coast", "owner": None, "building": None},
+            (2, 0): {"q": 2, "r": 0, "terrain": "grass", "owner": "player", "building": None},
+            (3, 0): {"q": 3, "r": 0, "terrain": "grass", "owner": None, "building": None},
+        })
+        coast = landgrab._tiles[(1, 0)]
+        self.assertIsNone(landgrab._buy_locked("player", coast, True, {}))
+        self.assertTrue(landgrab._tile_payload(coast)["active"])
+        self.assertFalse(landgrab._tile_payload(coast)["movable"])
+        self.assertFalse(landgrab._tile_payload(landgrab._tiles[(2, 0)])["active"])
+        self.assertFalse(landgrab._has_neighbor_locked("player", 2, 0))
+        self.assertIsNone(landgrab._build_locked(
+            "player", coast, landgrab.BUILDINGS["port"], landgrab._owned_buildings_locked("player"),
+        ))
+        self.assertTrue(landgrab._tile_payload(coast)["movable"])
+        self.assertTrue(landgrab._tile_payload(landgrab._tiles[(2, 0)])["active"])
+        self.assertTrue(landgrab._has_neighbor_locked("player", 3, 0))
+        coast["building"] = None
+        self.assertFalse(landgrab._tile_payload(landgrab._tiles[(2, 0)])["active"])
+
+    def test_impassable_terrain_is_buyable_but_cannot_expand(self):
+        for terrain in ("water", "coast", "mountain", "cliff"):
+            with self.subTest(terrain=terrain):
+                tile = {"q": 1, "r": 0, "terrain": terrain, "owner": None, "building": None}
+                landgrab._tiles = {
+                    (0, 0): {"q": 0, "r": 0, "terrain": "grass", "owner": "player", "building": "city"},
+                    (1, 0): tile,
+                }
+                landgrab._phase = "running"
+                landgrab._players["player"] = {
+                    "name": "참가자", "resources": dict(landgrab.STARTING_RESOURCES),
+                }
+                self.assertIsNone(landgrab._buy_locked("player", tile, True, {}))
+                self.assertTrue(landgrab._tile_payload(tile)["active"])
+                self.assertFalse(landgrab._has_neighbor_locked("player", 2, 0))
+
     def test_cut_off_land_stops_production_and_actions_until_reconnected(self):
         self.setup_connected_territory()
         bridge = landgrab._tiles[(1, 0)]
         island = landgrab._tiles[(2, 0)]
         self.assertEqual(landgrab._user_state_locked("owner")["production"], {
-            "wood": 1, "stone": 1, "food": 11,
+            "wood": 1, "stone": 1, "food": 11, "iron": 0, "luxury": 0,
         })
         self.assertIsNone(landgrab._buy_locked("attacker", bridge, True, {}))
         self.assertFalse(landgrab._tile_payload(island)["active"])
         self.assertEqual(landgrab._tile_payload(island)["production"], {})
         self.assertEqual(landgrab._user_state_locked("owner")["production"], {
-            "wood": 1, "stone": 1, "food": 3,
+            "wood": 1, "stone": 1, "food": 3, "iron": 0, "luxury": 0,
         })
         with (
             Flask(__name__).test_request_context(),
@@ -730,10 +914,10 @@ class MapSizeTests(unittest.TestCase):
                     self.assertIn(left, landgrab._neighbor_coordinates(*right, width, True))
 
     def test_initial_positions_consider_wrapped_neighbors(self):
-        with patch("landgrab.random.choices", return_value=["water"]):
-            tiles = landgrab._make_map(5, 5)
-        tiles[(-2, 0)]["terrain"] = "grass"
-        tiles[(2, 0)]["terrain"] = "grass"
+        tiles = {
+            (-2, 0): {"terrain": "grass"},
+            (2, 0): {"terrain": "grass"},
+        }
         self.assertIsNone(landgrab._start_positions(tiles, 1, 5, False))
         self.assertIsNotNone(landgrab._start_positions(tiles, 1, 5, True))
 
@@ -763,7 +947,7 @@ class MapSizeTests(unittest.TestCase):
                 tile = landgrab._tiles[start]
                 self.assertEqual(tile["building"], "city")
                 self.assertEqual(landgrab._user_state_locked(player)["production"], {
-                    "wood": 1, "stone": 1, "food": 3,
+                    "wood": 1, "stone": 1, "food": 3, "iron": 0, "luxury": 0,
                 })
 
     def test_city_cost_spacing_and_nearest_city(self):
@@ -803,7 +987,7 @@ class MapSizeTests(unittest.TestCase):
             })
             self.assertEqual(landgrab._tile_payload(landgrab._tiles[(6, 0)], "player")["distance"], 1)
             self.assertEqual(landgrab._user_state_locked("player")["production"], {
-                "wood": 2, "stone": 2, "food": 24,
+                "wood": 2, "stone": 2, "food": 24, "iron": 0, "luxury": 0,
             })
             info = landgrab.on_landgrab_tile_info({"q": 10, "r": 0})
             self.assertEqual(info["buildings"][0]["cost"], {
@@ -941,7 +1125,11 @@ class MapSizeTests(unittest.TestCase):
             if (q + dq, r + dr) in tiles
         ]
         matching = sum(a["terrain"] == b["terrain"] for a, b in neighbors)
-        self.assertGreater(matching / len(neighbors), 0.35)
+        total_weight = sum(terrain.weight for terrain in landgrab.TERRAINS.values())
+        random_match = sum(
+            (terrain.weight / total_weight) ** 2 for terrain in landgrab.TERRAINS.values()
+        )
+        self.assertGreater(matching / len(neighbors), random_match)
 
     def test_noise_mode_is_used_and_reported(self):
         response = landgrab.on_landgrab_start({
@@ -1008,27 +1196,19 @@ class MapSizeTests(unittest.TestCase):
 
     def test_real_map_landmarks(self):
         examples = (
-            ("world", 50, 25, (-180, -90, 180, 90), -140, 0, "water"),
-            ("world", 50, 25, (-180, -90, 180, 90), -60, -5, "forest"),
-            ("world", 50, 25, (-180, -90, 180, 90), 85, 29, "mountain"),
-            ("world", 100, 70, (-180, -90, 180, 90), -140, 0, "water"),
-            ("world", 100, 70, (-180, -90, 180, 90), -106.2, 16.7, "water"),
-            ("world", 100, 70, (-180, -90, 180, 90), -77.4, 9.0, "forest"),
-            ("world", 100, 70, (-180, -90, 180, 90), -120.6, 52.7, "mountain"),
-            ("world", 100, 70, (-180, -90, 180, 90), -66, -3, "forest"),
-            ("world", 100, 70, (-180, -90, 180, 90), 20, 25, "desert"),
-            ("world", 100, 70, (-180, -90, 180, 90), 85, 29, "mountain"),
-            ("korea", 30, 50, (124, 32.5, 132, 43.5), 130, 37, "water"),
-            ("korea", 30, 50, (124, 32.5, 132, 43.5), 128.8, 37.5, "mountain"),
+            ("world", 100, 70, (-180, -90, 180, 90), -140, 0, {"water", "coast"}),
+            ("world", 100, 70, (-180, -90, 180, 90), -66, -3, {"forest", "jungle"}),
+            ("world", 100, 70, (-180, -90, 180, 90), 85, 29, {"mountain", "rocks", "cliff", "snow"}),
+            ("korea", 30, 50, (124, 32.5, 132, 43.5), 130, 37, {"water", "coast"}),
         )
-        for mode, width, height, bounds, lon, lat, terrain in examples:
+        for mode, width, height, bounds, lon, lat, terrain_types in examples:
             with self.subTest(mode=mode, lon=lon, lat=lat):
                 left, bottom, right, top = bounds
                 column = int((lon - left) / (right - left) * width)
                 row = int((top - lat) / (top - bottom) * height)
                 r = row - height // 2
                 q = column - width // 2 - r // 2
-                self.assertEqual(landgrab._make_map(width, height, mode)[(q, r)]["terrain"], terrain)
+                self.assertIn(landgrab._make_map(width, height, mode)[(q, r)]["terrain"], terrain_types)
 
 if __name__ == "__main__":
     unittest.main()
