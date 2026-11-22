@@ -1,0 +1,134 @@
+{% extends 'base.html' %}
+
+{% block title %}질문하기{% endblock %}
+
+{% block host_content %}
+<h1>질문하기</h1>
+<p id="question-class-label"></p>
+<section class="question-list-panel">
+    <div class="question-heading">
+        <h2>받은 질문</h2>
+        <button id="question-save" type="button" class="item-btn">모든 질문 저장</button>
+    </div>
+    <p id="question-status" role="status" aria-live="polite"></p>
+    <ol id="question-list"></ol>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const questionList = document.querySelector("#question-list");
+    const saveButton = document.querySelector("#question-save");
+    const questionStatus = document.querySelector("#question-status");
+    const classLabel = document.querySelector("#question-class-label");
+    let displayedQuestions = [];
+
+    function renderQuestions(questions) {
+        displayedQuestions = questions;
+        questionList.replaceChildren();
+        const groupedQuestions = new Map();
+        questions.forEach((item) => {
+            if (!groupedQuestions.has(item.name)) {
+                groupedQuestions.set(item.name, []);
+            }
+            groupedQuestions.get(item.name).push(item);
+        });
+
+        groupedQuestions.forEach((participantQuestions, name) => {
+            const participant = document.createElement("li");
+            participant.className = "question-participant";
+
+            const heading = document.createElement("div");
+            heading.className = "question-participant-heading";
+            const author = document.createElement("strong");
+            author.textContent = name;
+            const toggleQuestions = document.createElement("button");
+            toggleQuestions.type = "button";
+            toggleQuestions.className = "question-toggle";
+            toggleQuestions.textContent = "펼치기";
+            toggleQuestions.setAttribute("aria-expanded", "false");
+            const saveParticipant = document.createElement("button");
+            saveParticipant.type = "button";
+            saveParticipant.className = "item-btn";
+            saveParticipant.textContent = "이 질문 저장";
+            saveParticipant.disabled = !participantQuestions.some(
+                (item) => !item.saved
+            );
+            saveParticipant.addEventListener("click", () => {
+                saveQuestions({ name }, saveParticipant);
+            });
+            heading.append(author, toggleQuestions, saveParticipant);
+
+            const items = document.createElement("ul");
+            items.className = "question-participant-questions";
+            items.hidden = true;
+            participantQuestions.forEach((item) => {
+                const row = document.createElement("li");
+                row.className = "question-item" + (item.saved ? " saved" : "");
+                const content = document.createElement("p");
+                content.textContent = item.question;
+                const state = document.createElement("span");
+                state.textContent = item.saved ? "저장됨" : "저장 전";
+                row.append(content, state);
+                items.appendChild(row);
+            });
+            toggleQuestions.addEventListener("click", () => {
+                items.hidden = !items.hidden;
+                toggleQuestions.textContent = items.hidden ? "펼치기" : "접기";
+                toggleQuestions.setAttribute(
+                    "aria-expanded",
+                    String(!items.hidden)
+                );
+            });
+
+            participant.append(heading, items);
+            questionList.appendChild(participant);
+        });
+        saveButton.disabled = !questions.some((item) => !item.saved);
+    }
+
+    function handleState(response) {
+        if (!response || !response.ok) {
+            questionStatus.textContent =
+                (response && response.message) || "질문을 불러오지 못했습니다.";
+            saveButton.disabled = true;
+            return;
+        }
+        if (response.class) {
+            classLabel.textContent = `${response.class.name} 반 질문 목록`;
+        }
+        renderQuestions(response.questions || []);
+    }
+
+    function syncQuestions() {
+        socket.emit("question_sync", handleState);
+    }
+
+    function saveQuestions(data, button = saveButton) {
+        button.disabled = true;
+        socket.emit("save_questions", data, (response) => {
+            if (!response || !response.ok) {
+                questionStatus.textContent =
+                    (response && response.message) || "질문을 저장하지 못했습니다.";
+                renderQuestions(displayedQuestions);
+                return;
+            }
+            handleState(response);
+            questionStatus.textContent = `${response.saved_count}개의 질문을 저장했습니다.`;
+        });
+    }
+
+    saveButton.addEventListener("click", () => {
+        saveQuestions({});
+    });
+
+    socket.on("question_asked", (data) => {
+        if (!data || !data.question) return;
+        renderQuestions([...displayedQuestions, data.question]);
+        questionStatus.textContent = `${data.question.name}님의 질문이 도착했습니다.`;
+    });
+
+    socket.on("connect", syncQuestions);
+    if (socket.connected) syncQuestions();
+</script>
+{% endblock %}

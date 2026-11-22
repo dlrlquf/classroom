@@ -1,6 +1,7 @@
 import base64
 import ipaddress
 import socket
+import sqlite3
 from io import BytesIO
 
 import qrcode
@@ -16,7 +17,14 @@ from flask import (
 from qrcode.image.svg import SvgPathImage
 
 from database import get_db
-from lobby import APPS, ROOMS, get_code, set_active_app
+from lobby import (
+    APPS,
+    ROOMS,
+    get_code,
+    is_class_started,
+    set_active_app,
+    stop_class,
+)
 
 bp = Blueprint("main", __name__)
 
@@ -37,10 +45,27 @@ def redirect_remote_clients():
     if _is_admin_ip_allowed() or request.endpoint in (
         "main.user",
         "main.user_app",
+        "main.class_status",
         "static",
     ):
         return None
     return redirect(url_for("main.user", **request.args.to_dict()))
+
+
+@bp.before_request
+def require_started_class():
+    if (
+        _is_admin_ip_allowed()
+        and request.endpoint in ("main.room", "main.app_page", "main.admin_redirect")
+        and not is_class_started()
+    ):
+        return redirect(
+            url_for(
+                "main.home",
+                notice="수업 시작 버튼을 먼저 눌러 주세요.",
+            )
+        )
+    return None
 
 
 def _make_join_info(code):
@@ -69,14 +94,26 @@ def _make_join_info(code):
 @bp.app_context_processor
 def inject_host_context():
     if _is_admin_ip_allowed() and request.endpoint != "main.user":
-        return {"rooms": ROOMS, "join_code": get_code(), **_make_join_info(get_code())}
+        return {
+            "rooms": ROOMS,
+            "join_code": get_code(),
+            "class_started": is_class_started(),
+            **_make_join_info(get_code()),
+        }
     return {"rooms": ROOMS}
 
 
 @bp.route("/")
 def home():
+    stop_class()
     set_active_app(None)
-    return render_template("home.html")
+    from lobby import get_class_list, get_selected_class
+
+    return render_template(
+        "home.html",
+        classes=get_class_list(),
+        selected_class=get_selected_class(),
+    )
 
 
 @bp.route("/room/<room_id>")
@@ -87,9 +124,104 @@ def room(room_id):
     return render_template("room.html", room_id=room_id, room=ROOMS[room_id])
 
 
+@bp.route("/classes/<int:class_id>", methods=["PATCH"])
+def update_class(class_id):
+    if not _is_admin_ip_allowed():
+        abort(403)
+    data = request.get_json(silent=True)
+    name = data.get("name") if isinstance(data, dict) else None
+    if not isinstance(name, str):
+        return {"ok": False, "message": "반 이름을 입력해 주세요."}, 400
+    name = name.strip()
+    if not name or len(name) > 40:
+        return {
+            "ok": False,
+            "message": "반 이름은 1~40자로 입력해 주세요.",
+        }, 400
+
+    db = get_db()
+    try:
+        cursor = db.execute(
+            "UPDATE seating_classes SET name = ? WHERE id = ?",
+            (name, class_id),
+        )
+        db.commit()
+    except sqlite3.IntegrityError:
+        db.rollback()
+        return {"ok": False, "message": "같은 이름의 반이 이미 있습니다."}, 409
+    if cursor.rowcount == 0:
+        return {"ok": False, "message": "선택한 반을 찾을 수 없습니다."}, 404
+    return {"ok": True, "class": {"id": class_id, "name": name}}
+
+
+@bp.route("/classes", methods=["POST"])
+def create_class():
+    if not _is_admin_ip_allowed():
+        abort(403)
+    data = request.get_json(silent=True)
+    name = data.get("name") if isinstance(data, dict) else None
+    if not isinstance(name, str):
+        return {"ok": False, "message": "반 이름을 입력해 주세요."}, 400
+    name = name.strip()
+    if not name or len(name) > 40:
+        return {
+            "ok": False,
+            "message": "반 이름은 1~40자로 입력해 주세요.",
+        }, 400
+
+    db = get_db()
+    try:
+        cursor = db.execute(
+            "INSERT INTO seating_classes (name) VALUES (?)", (name,)
+        )
+        db.commit()
+    except sqlite3.IntegrityError:
+        db.rollback()
+        return {"ok": False, "message": "같은 이름의 반이 이미 있습니다."}, 409
+    return {
+        "ok": True,
+        "class": {"id": cursor.lastrowid, "name": name},
+    }, 201
+
+
+@bp.route("/classes/<int:class_id>", methods=["DELETE"])
+def delete_class(class_id):
+    if not _is_admin_ip_allowed():
+        abort(403)
+    from lobby import clear_selected_class
+
+    db = get_db()
+    if db.execute(
+        "SELECT id FROM seating_classes WHERE id = ?", (class_id,)
+    ).fetchone() is None:
+        return {"ok": False, "message": "선택한 반을 찾을 수 없습니다."}, 404
+    try:
+        db.execute("DELETE FROM questions WHERE class_id = ?", (class_id,))
+        db.execute("DELETE FROM seating_seats WHERE class_id = ?", (class_id,))
+        db.execute(
+            "DELETE FROM seating_locked_seats WHERE class_id = ?", (class_id,)
+        )
+        db.execute("DELETE FROM seating_classes WHERE id = ?", (class_id,))
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    clear_selected_class(class_id)
+    return {"ok": True}
+
+
 @bp.route("/user")
 def user():
-    return render_template("user.html", code=request.args.get("code", ""))
+    return render_template(
+        "user.html",
+        code=request.args.get("code", ""),
+        class_started=is_class_started(),
+    )
+
+
+@bp.route("/class-status")
+def class_status():
+    return {"started": is_class_started()}
 
 
 @bp.route("/user/app/<app_id>")

@@ -4,6 +4,7 @@ import threading
 
 from flask import request
 
+from database import get_db
 import events
 from extensions import socketio
 
@@ -31,8 +32,8 @@ ROOMS = {
                 "ready": True,
             },
             {
-                "id": "classflow",
-                "name": "클래스 플로우",
+                "id": "question",
+                "name": "질문하기",
                 "description": "참가자들이 수업 흐름에 따라 활동합니다.",
                 "ready": True,
             },
@@ -126,10 +127,110 @@ _lock = threading.RLock()
 _code = f"{secrets.randbelow(10**6):06d}"
 _users = {}
 _active_app = None
+_selected_class_id = None
+_class_started = False
 
 
 def get_code():
     return _code
+
+
+def get_class_list():
+    return [
+        {"id": row["id"], "name": row["name"]}
+        for row in get_db().execute(
+            "SELECT id, name FROM seating_classes ORDER BY name COLLATE NOCASE"
+        ).fetchall()
+    ]
+
+
+def get_selected_class_id():
+    global _selected_class_id
+    if _selected_class_id is not None:
+        return _selected_class_id
+
+    setting = get_db().execute(
+        "SELECT value FROM settings WHERE key = 'selected_class_id'"
+    ).fetchone()
+    if setting is None:
+        return None
+    try:
+        class_id = int(setting["value"])
+    except (TypeError, ValueError):
+        return None
+    row = get_db().execute(
+        "SELECT id FROM seating_classes WHERE id = ?", (class_id,)
+    ).fetchone()
+    if row is None:
+        return None
+    _selected_class_id = class_id
+    return class_id
+
+
+def get_selected_class():
+    class_id = get_selected_class_id()
+    if class_id is None:
+        return None
+    row = get_db().execute(
+        "SELECT id, name FROM seating_classes WHERE id = ?", (class_id,)
+    ).fetchone()
+    if row is None:
+        return None
+    return {"id": row["id"], "name": row["name"]}
+
+
+def is_class_started():
+    with _lock:
+        return _class_started
+
+
+def clear_selected_class(class_id):
+    global _selected_class_id
+    with _lock:
+        if _selected_class_id == class_id:
+            _selected_class_id = None
+            get_db().execute(
+                "DELETE FROM settings WHERE key = 'selected_class_id'"
+            )
+            get_db().commit()
+
+
+def stop_class():
+    global _class_started
+    with _lock:
+        _class_started = False
+        online_sids = [
+            user["sid"] for user in _users.values() if user["online"]
+        ]
+        for user in _users.values():
+            if user["online"]:
+                user["online"] = False
+    socketio.emit("class_stopped")
+    for sid in online_sids:
+        socketio.server.disconnect(sid)
+    _broadcast_participants()
+
+
+def _set_selected_class_id(class_id):
+    global _selected_class_id, _class_started
+    row = get_db().execute(
+        "SELECT id, name FROM seating_classes WHERE id = ?", (class_id,)
+    ).fetchone()
+    if row is None:
+        return None
+    db = get_db()
+    db.execute(
+        "INSERT INTO settings (key, value) VALUES ('selected_class_id', ?) "
+        "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        (str(class_id),),
+    )
+    db.commit()
+    with _lock:
+        _selected_class_id = class_id
+        _class_started = True
+        for user in _users.values():
+            user["class_id"] = class_id
+    return {"id": row["id"], "name": row["name"]}
 
 
 def _participants_locked():
@@ -225,6 +326,11 @@ def on_user_join(data=None):
         return _error("접속 코드가 올바르지 않습니다.")
     if not events.is_valid_nickname(name):
         return _error("이름은 1~16자이며 한글, 영문, 숫자를 사용할 수 있습니다.")
+    if not is_class_started():
+        return _error("호스트가 수업을 아직 시작하지 않았습니다.")
+    class_id = get_selected_class_id()
+    if class_id is None:
+        return _error("호스트가 수업 반을 아직 선택하지 않았습니다.")
 
     with _lock:
         if any(
@@ -244,7 +350,12 @@ def on_user_join(data=None):
         else:
             reconnected = False
             notice = events.join_game(request.sid, name)
-        _users[client_id] = {"name": name, "sid": request.sid, "online": True}
+        _users[client_id] = {
+            "name": name,
+            "sid": request.sid,
+            "online": True,
+            "class_id": class_id,
+        }
         active_app = _active_app
 
     _broadcast_participants()
@@ -260,3 +371,18 @@ def on_user_join(data=None):
         "reconnected": reconnected,
         "notice": notice,
     }
+
+
+@socketio.on("lobby_select_class")
+def on_lobby_select_class(data=None):
+    from routes import _is_admin_ip_allowed
+
+    if not _is_admin_ip_allowed():
+        return _error("호스트만 반을 선택할 수 있습니다.")
+    class_id = data.get("class_id") if isinstance(data, dict) else None
+    if isinstance(class_id, bool) or not isinstance(class_id, int):
+        return _error("반 정보를 올바르게 선택해 주세요.")
+    selected_class = _set_selected_class_id(class_id)
+    if selected_class is None:
+        return _error("선택한 반을 찾을 수 없습니다.")
+    return {"ok": True, "class": selected_class}

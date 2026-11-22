@@ -120,9 +120,33 @@ def init_app(app):
                 seat_order INTEGER NOT NULL,
                 PRIMARY KEY(class_id, seat_order)
             );
+            CREATE TABLE IF NOT EXISTS questions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                class_id INTEGER NOT NULL REFERENCES seating_classes(id),
+                client_id TEXT NOT NULL,
+                participant_name TEXT NOT NULL,
+                question TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                saved_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
             DROP TABLE IF EXISTS users;
             """
         )
+        question_legacy_tables = {
+            row["name"] for row in db.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table'"
+            )
+        }
+        if "classflow_questions" in question_legacy_tables:
+            db.execute(
+                "INSERT INTO questions "
+                "(id, class_id, client_id, participant_name, question, "
+                "created_at, saved_at) "
+                "SELECT id, class_id, client_id, participant_name, question, "
+                "created_at, saved_at FROM classflow_questions "
+                "WHERE id NOT IN (SELECT id FROM questions)"
+            )
+            db.execute("DROP TABLE classflow_questions")
         seating_class_columns = {
             row["name"] for row in db.execute("PRAGMA table_info(seating_classes)")
         }

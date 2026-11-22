@@ -4,6 +4,7 @@
            class="{{ 'active' if request.endpoint == 'main.home' }}">홈</a>
         {% for id, room in rooms.items() %}
         <a href="{{ url_for('main.room', room_id=id) }}"
+           data-requires-class-start
            class="{{ 'active' if room_id is defined and room_id == id }}">{{ room.name }}</a>
         {% endfor %}
     </nav>

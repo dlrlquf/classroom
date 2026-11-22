@@ -23,7 +23,24 @@
     </main>
     {% endif %}
     <script src="{{ url_for('static', filename='js/socket.io.min.js') }}"></script>
-    <script>const socket = io();</script>
+    <script>const socket = io({
+        autoConnect: {{ 'false' if request.endpoint in ('main.home', 'main.user') else 'true' }}
+    });</script>
+    {% if request.endpoint != 'main.user' %}
+    <script>
+        let classStarted = {{ class_started | default(false) | tojson }};
+        document.querySelectorAll('[data-requires-class-start]').forEach((link) => {
+            link.addEventListener('click', (event) => {
+                if (classStarted) return;
+                event.preventDefault();
+                window.alert('수업 시작 버튼을 먼저 눌러 주세요.');
+            });
+        });
+        const navigationNotice = new URLSearchParams(window.location.search)
+            .get('notice');
+        if (navigationNotice) window.alert(navigationNotice);
+    </script>
+    {% endif %}
     {% if request.endpoint != 'main.user' %}
     <script src="{{ url_for('static', filename='js/participants.js') }}"></script>
     {% endif %}

@@ -1,5 +1,7 @@
 {# 앱 호스트 화면 상단에 넣는 접속 코드/QR 코드. join_code, join_url, qr_code가 필요하다. #}
-<aside class="join-info">
+<aside class="join-info"
+    id="join-info"
+    {% if request.endpoint == 'main.home' %}hidden{% endif %}>
     <h2>접속 코드</h2>
     <p class="join-code">{{ join_code }}</p>
     {% if qr_code %}

@@ -82,6 +82,7 @@ const scriptCache = {};
 let unmountCurrent = null;
 let renderToken = 0;
 let currentApp = null;
+let statusPollTimer = null;
 
 // 앱 스크립트가 자신의 mount 함수를 등록한다. mount는 정리(unmount) 함수를 반환한다.
 function registerUserApp(appId, mount) {
@@ -165,6 +166,34 @@ function enterApp(appId) {
     showApp(appId);
 }
 
+function stopWaitingForClass() {
+    if (statusPollTimer === null) return;
+    window.clearInterval(statusPollTimer);
+    statusPollTimer = null;
+}
+
+async function pollClassStatus() {
+    try {
+        const response = await fetch('/class-status', { cache: 'no-store' });
+        if (!response.ok) throw new Error('class status ' + response.status);
+        const status = await response.json();
+        if (!status.started) return;
+        stopWaitingForClass();
+        socket.connect();
+    } catch (error) {
+        lobbyStatus.textContent = '수업 시작 여부를 확인하지 못했습니다.';
+        lobbyStatus.classList.add('error');
+    }
+}
+
+function startWaitingForClass() {
+    stopWaitingForClass();
+    lobbyStatus.textContent = '호스트가 수업을 시작하면 자동으로 연결됩니다.';
+    lobbyStatus.classList.remove('error');
+    statusPollTimer = window.setInterval(pollClassStatus, 1000);
+    pollClassStatus();
+}
+
 function joinLobby(name, code) {
     socket.emit('user_join', { name, code, client_id: getClientId() }, (response) => {
         if (!response || !response.ok) {
@@ -193,6 +222,11 @@ if (savedSession) {
 
 lobbyForm.addEventListener('submit', (event) => {
     event.preventDefault();
+    if (!socket.connected) {
+        lobbyStatus.textContent = '호스트가 수업을 아직 시작하지 않았습니다.';
+        lobbyStatus.classList.add('error');
+        return;
+    }
     joinLobby(
         nameInput.value.trim(),
         codeInputs.map((input) => input.value).join('')
@@ -205,6 +239,21 @@ socket.on('app_changed', (data) => {
 });
 
 socket.on('connect', () => {
+    stopWaitingForClass();
     const session = loadSession();
     if (session) joinLobby(session.name, session.code);
 });
+
+socket.on('class_stopped', () => {
+    socket.disconnect();
+    renderToken += 1;
+    clearApp();
+    lobbyPanel.hidden = false;
+    startWaitingForClass();
+});
+
+if (initialClassStarted) {
+    socket.connect();
+} else {
+    startWaitingForClass();
+}

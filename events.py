@@ -553,15 +553,6 @@ def on_drawing_undo():
         socketio.emit("drawing_state", {"strokes": remaining})
     return {"ok": True}
 
-@socketio.on("classflow_ask_question")
-def on_classflow_ask_question():
-    print("Classflow question asked")
-    socketio.emit("classflow_question_asked") 
-    return {"ok": True}
-
-
-
-
 DISCONNECT_GRACE_SECONDS = 30
 def _remove_player(sid):
     with _lock:

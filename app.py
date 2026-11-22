@@ -11,6 +11,7 @@ from database import init_app as init_database
 from extensions import socketio
 from routes import bp
 import events  # noqa: F401  (소켓 이벤트 핸들러 등록용)
+import question  # noqa: F401  (소켓 이벤트 핸들러 등록용)
 import landgrab  # noqa: F401  (소켓 이벤트 핸들러 등록용)
 import lobby  # noqa: F401  (소켓 이벤트 핸들러 등록용)
 import mindgame  # noqa: F401  (소켓 이벤트 핸들러 등록용)

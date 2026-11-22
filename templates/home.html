@@ -3,6 +3,44 @@
 {% block title %}홈{% endblock %}
 
 {% block host_content %}
-<h1>참가자 <span id="participant-count">0</span>명</h1>
+<section class="home-class-panel">
+    <h1>수업 반 선택</h1>
+    <p>반 카드를 선택한 뒤 수업 시작 버튼을 눌러 주세요.</p>
+    <div class="home-class-toolbar">
+        <form id="home-class-create-form" class="settings-form">
+            <label for="home-class-create-name">새 반 이름</label>
+            <input id="home-class-create-name" type="text" maxlength="40"
+                placeholder="예: 3학년 2반" required>
+            <button type="submit" class="item-btn">반 추가</button>
+        </form>
+    </div>
+    <div id="home-class-list" class="home-class-list"
+        data-selected-class-id="{{ selected_class.id if selected_class else '' }}">
+        {% for class_info in classes %}
+        <article class="home-class-card{{ ' selected' if selected_class and selected_class.id == class_info.id }}"
+            data-class-id="{{ class_info.id }}">
+            <button type="button" class="home-class-select">
+                <span class="home-class-name">{{ class_info.name }}</span>
+                <span class="home-class-select-label">이 반으로 시작</span>
+            </button>
+            <div class="home-class-actions">
+                <button type="button" class="home-class-rename">이름 수정</button>
+                <button type="button" class="home-class-delete">삭제</button>
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+    <button id="home-start-class" type="button" class="item-btn"
+        {% if not selected_class %}disabled{% endif %}>수업 시작</button>
+    <p id="home-class-status" role="status" aria-live="polite">
+        {% if not classes %}먼저 자리 배치에서 반을 추가해 주세요.{% endif %}
+    </p>
+</section>
+
+<h2>참가자 <span id="participant-count">0</span>명</h2>
 <ul id="participant-list" class="participant-grid" aria-live="polite"></ul>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/home.js') }}"></script>
 {% endblock %}

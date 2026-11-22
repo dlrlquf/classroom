@@ -9,7 +9,8 @@
     {% for app in room.apps %}
     <li>
         {% if app.ready %}
-        <a class="app-card" href="{{ url_for('main.app_page', app_id=app.id) }}">
+        <a class="app-card" href="{{ url_for('main.app_page', app_id=app.id) }}"
+            data-requires-class-start>
             <strong>{{ app.name }}</strong>
             <span>{{ app.description }}</span>
         </a>

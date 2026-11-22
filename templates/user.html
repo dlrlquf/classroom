@@ -40,6 +40,7 @@
 
 {% block scripts %}
 <script>
+    const initialClassStarted = {{ class_started | tojson }};
     const userAppScriptUrls = {
         landgrab: {{ url_for('landgrab.static', filename='js/landgrab_user.js') | tojson }}
     };
