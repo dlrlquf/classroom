@@ -215,6 +215,90 @@ section {
     opacity: 0.6;
 }
 
+.crafting-team-settings,
+.crafting-team-choice {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 12px;
+}
+
+.crafting-team-settings label {
+    display: grid;
+    gap: 5px;
+    font-weight: 600;
+}
+
+.crafting-team-settings select,
+.crafting-host-team select {
+    min-height: 42px;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+}
+
+.crafting-host-teams {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+}
+
+.crafting-host-team {
+    min-height: 120px;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
+.crafting-host-team h3,
+.crafting-my-team h2 {
+    margin-top: 0;
+}
+
+.crafting-team-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.crafting-team-edit {
+    padding: 2px 6px;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    font-size: 1rem;
+}
+
+.crafting-team-name-input {
+    min-width: 0;
+    width: 100%;
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+    font-weight: 700;
+}
+
+.crafting-host-team ul,
+.crafting-my-team ul {
+    margin: 8px 0 0;
+    padding-left: 20px;
+}
+
+.crafting-host-team li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
 .player-list {
     display: flex;
     flex-wrap: wrap;

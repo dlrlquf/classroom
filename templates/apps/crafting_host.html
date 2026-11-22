@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+
+{% block title %}자원으로 물건 만들기{% endblock %}
+
+{% block host_content %}
+<h1>자원으로 물건 만들기</h1>
+<section class="admin-game">
+    <h2>게임 준비</h2>
+    <div class="crafting-team-settings">
+        <label for="crafting-team-mode">팀 구성 방식</label>
+        <select id="crafting-team-mode">
+            <option value="random">무작위로 설정</option>
+            <option value="participant">참가자가 설정</option>
+            <option value="host">호스트가 설정</option>
+        </select>
+        <label for="crafting-team-count">팀 수</label>
+        <select id="crafting-team-count">
+            {% for count in range(1, 9) %}
+            <option value="{{ count }}" {{ 'selected' if count == 2 }}>{{ count }}팀</option>
+            {% endfor %}
+        </select>
+        <button type="button" id="crafting-team-configure" class="item-btn">팀 설정 적용</button>
+        <button type="button" id="crafting-team-randomize" class="item-btn" hidden>다시 무작위 배정</button>
+    </div>
+    <p id="crafting-team-status" role="status" aria-live="polite">
+        팀 구성 방식을 선택해 주세요.
+    </p>
+</section>
+
+<section>
+    <h2>팀 대기 현황</h2>
+    <div id="crafting-host-teams" class="crafting-host-teams"></div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/crafting_host.js') }}"></script>
+{% endblock %}

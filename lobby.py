@@ -79,6 +79,12 @@ ROOMS = {
                 "ready": True,
             },
             {
+                "id": "crafting",
+                "name": "자원으로 물건 만들기",
+                "description": "자원을 모아 물건을 만드는 게임입니다.",
+                "ready": True,
+            },
+            {
                 "id": "liar",
                 "name": "라이어 게임",
                 "description": "참가자 중 한 명이 거짓말을 하고 나머지가 이를 맞춥니다.",
@@ -167,6 +173,15 @@ def online_users():
         }
 
 
+def online_user_sessions():
+    with _lock:
+        return [
+            (client_id, user["name"], user["sid"])
+            for client_id, user in _users.items()
+            if user["online"]
+        ]
+
+
 def _error(message):
     return {"ok": False, "message": message}
 
@@ -181,8 +196,10 @@ def on_disconnect(sid):
     if changed:
         _broadcast_participants()
         import truefalse
+        import crafting
 
         truefalse.broadcast_state()
+        crafting.broadcast_state()
 
 
 @socketio.on("participants_sync")
@@ -232,8 +249,10 @@ def on_user_join(data=None):
 
     _broadcast_participants()
     import truefalse
+    import crafting
 
     truefalse.broadcast_state()
+    crafting.broadcast_state()
     return {
         "ok": True,
         "app": active_app,

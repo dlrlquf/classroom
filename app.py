@@ -17,6 +17,7 @@ import mindgame  # noqa: F401  (소켓 이벤트 핸들러 등록용)
 import responses  # noqa: F401  (소켓 이벤트 핸들러 등록용)
 import seating  # noqa: F401  (소켓 이벤트 핸들러 등록용)
 import truefalse  # noqa: F401  (소켓 이벤트 핸들러 등록용)
+import crafting  # noqa: F401  (소켓 이벤트 핸들러 등록용)
 
 PORT = 5000
 
