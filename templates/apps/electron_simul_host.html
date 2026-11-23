@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+
+{% block title %}전자의 움직임{% endblock %}
+
+{% block host_content %}
+<h1>전자의 움직임</h1>
+<div id="electron-simulation" aria-label="전자의 움직임 시뮬레이션"></div>
+<section class="admin-game" aria-labelledby="electron-options-title">
+    <h2 id="electron-options-title">옵션</h2>
+    <label>
+        <input id="electron-option-grayscale" type="checkbox">
+        회색조
+    </label>
+    <label>
+        <input id="electron-option-slow" type="checkbox">
+        천천히
+    </label>
+    <label id="electron-slow-delay-setting" hidden>
+        delay
+        <input id="electron-slow-delay" type="range"
+            min="0" max="500" step="10" value="20">
+        <output id="electron-slow-delay-value" for="electron-slow-delay">20ms</output>
+    </label>
+    <label>
+        <input id="electron-option-order" type="checkbox">
+        순서
+    </label>
+    <label>
+        <input id="electron-option-one" type="checkbox">
+        하나만
+    </label>
+</section>
+<div id="simulator"></div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/electron_simul.js') }}"></script>
+{% endblock %}

@@ -38,6 +38,13 @@ ROOMS = {
                 "ready": True,
             },
             {
+                "id": "electron_simul",
+                "name": "전자의 움직임",
+                "description": "전자의 움직임을 시뮬레이션합니다.",
+                "ready": True,
+                "host_only": True,
+            },
+            {
                 "id": "oneofmany",
                 "name": "하나를 고르기",
                 "description": "참가자들이 여러 선택지 중 하나를 고릅니다.",

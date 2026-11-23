@@ -230,7 +230,11 @@ def class_status():
 @bp.route("/user/app/<app_id>")
 def user_app(app_id):
     app_info = APPS.get(app_id)
-    if app_info is None or not app_info["ready"]:
+    if (
+        app_info is None
+        or not app_info["ready"]
+        or app_info.get("host_only", False)
+    ):
         abort(404)
     return render_template(f"apps/{app_id}_user.html")
 
@@ -249,7 +253,7 @@ def app_page(app_id):
     handler = HOST_HANDLERS.get(app_id)
     if handler is not None:
         return handler(app_info)
-    set_active_app(app_id)
+    set_active_app(None if app_info.get("host_only", False) else app_id)
     return render_template(
         f"apps/{app_id}_host.html",
         room_id=app_info["room_id"],
