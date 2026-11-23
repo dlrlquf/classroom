@@ -120,9 +120,18 @@ def init_app(app):
                 seat_order INTEGER NOT NULL,
                 PRIMARY KEY(class_id, seat_order)
             );
+            CREATE TABLE IF NOT EXISTS question_sessions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                class_id INTEGER NOT NULL REFERENCES seating_classes(id),
+                name TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                is_active INTEGER NOT NULL DEFAULT 0
+                    CHECK(is_active IN (0, 1))
+            );
             CREATE TABLE IF NOT EXISTS questions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 class_id INTEGER NOT NULL REFERENCES seating_classes(id),
+                session_id INTEGER REFERENCES question_sessions(id),
                 client_id TEXT NOT NULL,
                 participant_name TEXT NOT NULL,
                 question TEXT NOT NULL,
@@ -147,6 +156,37 @@ def init_app(app):
                 "WHERE id NOT IN (SELECT id FROM questions)"
             )
             db.execute("DROP TABLE classflow_questions")
+        question_columns = {
+            row["name"] for row in db.execute("PRAGMA table_info(questions)")
+        }
+        if "session_id" not in question_columns:
+            db.execute(
+                "ALTER TABLE questions ADD COLUMN "
+                "session_id INTEGER REFERENCES question_sessions(id)"
+            )
+        legacy_question_classes = db.execute(
+            "SELECT DISTINCT class_id FROM questions "
+            "WHERE session_id IS NULL ORDER BY class_id"
+        ).fetchall()
+        for row in legacy_question_classes:
+            cursor = db.execute(
+                "INSERT INTO question_sessions (class_id, name) "
+                "VALUES (?, '기존 질문')",
+                (row["class_id"],),
+            )
+            db.execute(
+                "UPDATE questions SET session_id = ? "
+                "WHERE class_id = ? AND session_id IS NULL",
+                (cursor.lastrowid, row["class_id"]),
+            )
+        db.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS one_active_question_session "
+            "ON question_sessions(class_id) WHERE is_active = 1"
+        )
+        db.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS unique_question_session_name "
+            "ON question_sessions(class_id, name COLLATE NOCASE)"
+        )
         seating_class_columns = {
             row["name"] for row in db.execute("PRAGMA table_info(seating_classes)")
         }

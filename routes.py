@@ -1,5 +1,6 @@
 import base64
 import ipaddress
+import os
 import socket
 import sqlite3
 from io import BytesIO
@@ -12,6 +13,7 @@ from flask import (
     redirect,
     render_template,
     request,
+    send_from_directory,
     url_for,
 )
 from qrcode.image.svg import SvgPathImage
@@ -197,6 +199,7 @@ def delete_class(class_id):
         return {"ok": False, "message": "선택한 반을 찾을 수 없습니다."}, 404
     try:
         db.execute("DELETE FROM questions WHERE class_id = ?", (class_id,))
+        db.execute("DELETE FROM question_sessions WHERE class_id = ?", (class_id,))
         db.execute("DELETE FROM seating_seats WHERE class_id = ?", (class_id,))
         db.execute(
             "DELETE FROM seating_locked_seats WHERE class_id = ?", (class_id,)
